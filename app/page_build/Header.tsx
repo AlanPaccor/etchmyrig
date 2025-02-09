@@ -3,9 +3,11 @@
 import Link from 'next/link'
 import { useState } from 'react'
 import { motion } from 'framer-motion'
+import { useAuth } from "../context/AuthContext"
 
 export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const { user } = useAuth()
 
   return (
     <header className="bg-white shadow-sm fixed w-full z-50">
@@ -13,7 +15,7 @@ export default function Header() {
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
           <Link href="/" className="flex items-center">
-            <span className="text-2xl font-bold text-blue-600">PhoneCase</span>
+            <span className="text-2xl font-bold text-blue-600 font-cairo">PCaseHub</span>
           </Link>
 
           {/* Desktop Navigation */}
@@ -28,13 +30,13 @@ export default function Header() {
               href="/cases" 
               className="text-gray-700 hover:text-blue-600 transition-colors"
             >
-              Cases
+              PC Cases
             </Link>
             <Link 
-              href="/about" 
+              href="/builds" 
               className="text-gray-700 hover:text-blue-600 transition-colors"
             >
-              About
+              Featured Builds
             </Link>
             <Link 
               href="/contact" 
@@ -46,16 +48,25 @@ export default function Header() {
 
           {/* Shopping Cart & Account */}
           <div className="hidden md:flex items-center space-x-4">
-            <button className="text-gray-700 hover:text-blue-600">
+            <Link href="/cart" className="text-gray-700 hover:text-blue-600">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
               </svg>
-            </button>
-            <button className="text-gray-700 hover:text-blue-600">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-              </svg>
-            </button>
+            </Link>
+            {user ? (
+              <Link href="/profile" className="text-gray-700 hover:text-blue-600">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+              </Link>
+            ) : (
+              <Link 
+                href="/auth/signin" 
+                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+              >
+                Sign In
+              </Link>
+            )}
           </div>
 
           {/* Mobile menu button */}
