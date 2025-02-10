@@ -1,177 +1,178 @@
 'use client'
 
-import React, { Suspense, useEffect, useState } from 'react'
-import type { Object3D, Group } from 'three'
-import type { Canvas as CanvasType } from '@react-three/fiber'
-import type { OrbitControlsType } from '@react-three/drei'
-import dynamic from 'next/dynamic'
+import { useEffect, useRef, useState } from 'react'
+import * as THREE from 'three'
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls'
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader'
+import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader'
+import { Loader } from './Loader'
 
-interface Props {
+interface ThreeSceneProps {
   modelPath: string
 }
 
-interface ThreeComponents {
-  Canvas: typeof CanvasType
-  OrbitControls: any
-  Stage: any
-  useGLTF: any
-}
-
-// Dynamically import components with no SSR
-const DynamicCanvas = dynamic(
-  () => import('@react-three/fiber').then((mod) => mod.Canvas),
-  { ssr: false }
-)
-
-const DynamicStage = dynamic(
-  () => import('@react-three/drei').then((mod) => mod.Stage),
-  { ssr: false }
-)
-
-const DynamicOrbitControls = dynamic(
-  () => import('@react-three/drei').then((mod) => mod.OrbitControls),
-  { ssr: false }
-)
-
-export default function ThreeScene({ modelPath }: Props) {
+export default function ThreeScene({ modelPath }: ThreeSceneProps) {
+  const containerRef = useRef<HTMLDivElement>(null)
   const [error, setError] = useState<string | null>(null)
-  const [loadingState, setLoadingState] = useState('initializing')
-  const [gltf, setGltf] = useState<any>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [loadingProgress, setLoadingProgress] = useState(0)
 
   useEffect(() => {
-    const loadModel = async () => {
-      try {
-        setLoadingState('loading-model')
-        console.log('Attempting to load model from:', '/3d/Corshair4000D-3d.glb')
+    if (!containerRef.current) return
+
+    let mounted = true
+    console.log('Initializing Three.js scene with model:', modelPath)
+
+    // Scene setup
+    const scene = new THREE.Scene()
+    scene.background = new THREE.Color(0x111111)
+
+    // Camera setup
+    const camera = new THREE.PerspectiveCamera(
+      75,
+      window.innerWidth / window.innerHeight,
+      0.1,
+      1000
+    )
+    camera.position.set(2, 2, 2)
+
+    // Renderer setup
+    const renderer = new THREE.WebGLRenderer({
+      antialias: true,
+      alpha: true,
+    })
+    renderer.setSize(window.innerWidth, window.innerHeight)
+    renderer.setPixelRatio(window.devicePixelRatio)
+    renderer.shadowMap.enabled = true
+    containerRef.current.appendChild(renderer.domElement)
+
+    // Lights
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.5)
+    scene.add(ambientLight)
+
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 1)
+    directionalLight.position.set(5, 5, 5)
+    directionalLight.castShadow = true
+    scene.add(directionalLight)
+
+    // Controls
+    const controls = new OrbitControls(camera, renderer.domElement)
+    controls.enableDamping = true
+    controls.dampingFactor = 0.05
+    controls.minDistance = 2
+    controls.maxDistance = 10
+
+    // Loading cube
+    const geometry = new THREE.BoxGeometry()
+    const material = new THREE.MeshPhongMaterial({ color: 0x00ff00 })
+    const cube = new THREE.Mesh(geometry, material)
+    cube.position.set(0, 0, 0)
+    scene.add(cube)
+
+    // Model loading
+    const loader = new GLTFLoader()
+    const dracoLoader = new DRACOLoader()
+    dracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/')
+    loader.setDRACOLoader(dracoLoader)
+
+    console.log('Starting to load model from:', modelPath)
+
+    loader.load(
+      modelPath,
+      (gltf) => {
+        if (!mounted) return
+        console.log('Model loaded successfully:', gltf)
+        scene.remove(cube)
         
-        const { useGLTF } = await import('@react-three/drei')
-        const loadedGltf = await useGLTF('/3d/Corshair4000D-3d.glb')
+        const model = gltf.scene
         
-        console.log('Model loaded successfully:', loadedGltf)
-        setGltf(loadedGltf)
-        setLoadingState('model-loaded')
-      } catch (err) {
-        console.error('Error loading model:', err)
-        setError(`Failed to load 3D model: ${err}`)
-        setLoadingState('model-error')
+        // Center and scale model
+        const box = new THREE.Box3().setFromObject(model)
+        const center = box.getCenter(new THREE.Vector3())
+        const size = box.getSize(new THREE.Vector3())
+        
+        const maxDim = Math.max(size.x, size.y, size.z)
+        const scale = 2 / maxDim
+        
+        model.scale.setScalar(scale)
+        model.position.copy(center).multiplyScalar(-scale)
+
+        scene.add(model)
+
+        // Update camera position
+        const distance = 4
+        camera.position.set(distance, distance, distance)
+        controls.target.copy(new THREE.Vector3(0, 0, 0))
+        controls.update()
+        
+        setIsLoading(false)
+      },
+      (progress) => {
+        const percentComplete = (progress.loaded / progress.total) * 100
+        console.log('Loading progress:', percentComplete.toFixed(2) + '%')
+        setLoadingProgress(percentComplete)
+      },
+      (error) => {
+        console.error('Error loading model:', error)
+        setError(error.message)
+        setIsLoading(false)
       }
+    )
+
+    // Animation loop
+    function animate() {
+      if (!mounted) return
+      requestAnimationFrame(animate)
+      cube.rotation.x += 0.01
+      cube.rotation.y += 0.01
+      controls.update()
+      renderer.render(scene, camera)
     }
+    animate()
 
-    loadModel()
-  }, [])
-
-  // Show loading states
-  if (loadingState === 'initializing' || loadingState === 'loading-model') {
-    return (
-      <div className="w-full h-full flex items-center justify-center">
-        <div className="text-blue-600">
-          Loading state: {loadingState}...
-        </div>
-      </div>
-    )
-  }
-
-  if (error) {
-    return (
-      <div className="w-full h-full flex items-center justify-center">
-        <div className="text-red-500 p-4 bg-red-50 rounded">
-          Error: {error}
-        </div>
-      </div>
-    )
-  }
-
-  function Model() {
-    if (!gltf || !gltf.scene) {
-      return null
+    // Handle window resize
+    const handleResize = () => {
+      if (!mounted) return
+      camera.aspect = window.innerWidth / window.innerHeight
+      camera.updateProjectionMatrix()
+      renderer.setSize(window.innerWidth, window.innerHeight)
     }
+    window.addEventListener('resize', handleResize)
 
-    return (
-      <primitive 
-        object={gltf.scene} 
-        scale={1.5} 
-        position={[0, 0, 0]}
-        onError={(e: any) => {
-          console.error('Error in primitive:', e)
-          setError('Failed to render model')
-          setLoadingState('render-error')
-        }}
-      />
-    )
-  }
+    // Cleanup
+    return () => {
+      mounted = false
+      window.removeEventListener('resize', handleResize)
+      
+      if (containerRef.current?.contains(renderer.domElement)) {
+        containerRef.current.removeChild(renderer.domElement)
+      }
+      
+      renderer.dispose()
+      geometry.dispose()
+      material.dispose()
+      dracoLoader.dispose()
+    }
+  }, [modelPath])
 
   return (
-    <div style={{ width: '100%', height: '100%', position: 'absolute' }}>
-      <div 
-        style={{ 
-          position: 'absolute', 
-          top: 10, 
-          left: 10, 
-          zIndex: 1000,
-          background: 'rgba(255,255,255,0.8)',
-          padding: '5px',
-          borderRadius: '4px'
-        }}
-      >
-        Status: {loadingState}
-      </div>
-      
-      <DynamicCanvas
-        camera={{ 
-          position: [5, 5, 5],
-          fov: 75,
-          near: 0.1,
-          far: 1000
-        }}
-        style={{ 
-          background: '#f0f0f0',
-          width: '100%',
-          height: '100%'
-        }}
-        onCreated={() => {
-          console.log('Canvas created successfully')
-          setLoadingState('canvas-ready')
-        }}
-      >
-        <color attach="background" args={['#f0f0f0']} />
-        <ambientLight intensity={1} />
-        <hemisphereLight intensity={1} />
-        <spotLight 
-          position={[10, 10, 10]} 
-          angle={0.15} 
-          penumbra={1} 
-          intensity={1.5}
-          castShadow
-        />
-        <pointLight position={[-10, -10, -10]} intensity={0.5} />
-        
-        <Suspense 
-          fallback={
-            <mesh>
-              <boxGeometry args={[1, 1, 1]} />
-              <meshStandardMaterial color="hotpink" />
-            </mesh>
-          }
-        >
-          <DynamicStage
-            environment="city"
-            intensity={0.6}
-            adjustCamera={false}
-            shadows
-          >
-            <Model />
-          </DynamicStage>
-          <DynamicOrbitControls 
-            autoRotate 
-            autoRotateSpeed={1}
-            enableZoom={true}
-            enablePan={true}
-            minDistance={2}
-            maxDistance={20}
-            target={[0, 0, 0]}
-          />
-        </Suspense>
-      </DynamicCanvas>
+    <div className="relative w-full h-full">
+      <div ref={containerRef} className="w-full h-full" />
+      {isLoading && (
+        <div className="absolute inset-0 flex items-center justify-center bg-gray-900 bg-opacity-75">
+          <div className="text-center">
+            <Loader />
+            <p className="text-white mt-4">Loading 3D Model: {loadingProgress.toFixed(0)}%</p>
+          </div>
+        </div>
+      )}
+      {error && (
+        <div className="absolute inset-0 flex items-center justify-center bg-red-900 bg-opacity-75">
+          <div className="text-white text-center">
+            <p>Error loading model: {error}</p>
+          </div>
+        </div>
+      )}
     </div>
   )
 } 

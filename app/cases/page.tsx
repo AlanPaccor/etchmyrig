@@ -8,6 +8,7 @@ import ClientOnly from '@/app/components/ClientOnly'
 import { collection, getDocs } from 'firebase/firestore'
 import { db } from '@/app/lib/firebase'
 import { Loader } from '@/app/components/Loader'
+import Header from '../page_build/Header'
 
 interface Case {
   id: string
@@ -66,6 +67,7 @@ export default function CasesPage() {
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100">
+      <Header />
       {/* Hero Section */}
       <div className="relative h-[500px] bg-gradient-to-r from-blue-700 via-blue-600 to-purple-600 overflow-hidden">
         <div className="absolute inset-0 bg-grid-white/[0.2] bg-grid-pattern" />
