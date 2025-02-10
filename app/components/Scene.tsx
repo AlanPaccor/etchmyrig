@@ -1,51 +1,47 @@
 'use client'
 
-import { Suspense } from 'react'
-import dynamic from 'next/dynamic'
-import type { Object3D } from 'three'
-
-// Dynamically import Three.js components
-const Canvas = dynamic(
-  () => import('@react-three/fiber').then((mod) => mod.Canvas),
-  { ssr: false }
-)
-
-const Stage = dynamic(
-  () => import('@react-three/drei').then((mod) => mod.Stage),
-  { ssr: false }
-)
-
-const OrbitControls = dynamic(
-  () => import('@react-three/drei').then((mod) => mod.OrbitControls),
-  { ssr: false }
-)
-
-// Type declaration for the GLTF result
-interface GLTFResult extends Object3D {
-  nodes: Record<string, Object3D>
-  materials: Record<string, unknown>
-}
+import { Canvas } from '@react-three/fiber'
+import { OrbitControls, Stage, useGLTF } from '@react-three/drei'
 
 function Model({ modelPath }: { modelPath: string }) {
-  // Dynamic import for useGLTF
-  const { useGLTF } = require('@react-three/drei')
-  const { scene } = useGLTF<GLTFResult>(modelPath)
-  
-  // Preload the model
-  useGLTF.preload(modelPath)
-  
-  return <primitive object={scene} />
+  const gltf = useGLTF(modelPath)
+  return <primitive object={gltf.scene} scale={1.5} position={[0, 0, 0]} />
 }
 
 export default function Scene({ modelPath }: { modelPath: string }) {
   return (
-    <Canvas>
-      <Suspense fallback={null}>
-        <Stage environment="city" intensity={0.6}>
-          <Model modelPath={modelPath} />
-        </Stage>
-        <OrbitControls autoRotate />
-      </Suspense>
+    <Canvas
+      camera={{ position: [5, 5, 5], fov: 75 }}
+      style={{ background: '#f0f0f0' }}
+    >
+      <ambientLight intensity={1} />
+      <hemisphereLight intensity={1} />
+      <spotLight 
+        position={[10, 10, 10]} 
+        angle={0.15} 
+        penumbra={1} 
+        intensity={1.5}
+        castShadow
+      />
+      <pointLight position={[-10, -10, -10]} intensity={0.5} />
+      
+      <Stage
+        environment="city"
+        intensity={0.6}
+        adjustCamera={false}
+        shadows
+      >
+        <Model modelPath={modelPath} />
+      </Stage>
+      <OrbitControls 
+        autoRotate 
+        autoRotateSpeed={1}
+        enableZoom={true}
+        enablePan={true}
+        minDistance={2}
+        maxDistance={20}
+        target={[0, 0, 0]}
+      />
     </Canvas>
   )
 } 

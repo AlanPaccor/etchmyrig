@@ -1,32 +1,34 @@
 'use client'
 
+import { Suspense, useEffect, useState } from 'react'
 import dynamic from 'next/dynamic'
-import { Suspense } from 'react'
+import { Loader } from './Loader'
 
-// Loading component
-function LoadingFallback() {
-  return (
-    <div className="w-full h-[500px] flex items-center justify-center bg-gray-50">
-      <div className="text-blue-600">Loading 3D viewer...</div>
-    </div>
-  )
+// Dynamically import Three.js components
+const Scene = dynamic(() => import('./Scene'), {
+  ssr: false,
+  loading: () => <Loader />
+})
+
+interface CaseModelProps {
+  modelPath: string
 }
 
-// Dynamic import for ThreeScene component
-const ThreeScene = dynamic(
-  () => import('./ThreeScene'),
-  {
-    ssr: false,
-    loading: LoadingFallback,
-  }
-)
+export default function CaseModel({ modelPath }: CaseModelProps) {
+  const [mounted, setMounted] = useState(false)
 
-// Main component
-export default function CaseModel({ modelPath }: { modelPath: string }) {
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  if (!mounted) {
+    return <Loader />
+  }
+
   return (
     <div className="w-full h-[500px] relative bg-gray-50 rounded-lg overflow-hidden">
-      <Suspense fallback={<LoadingFallback />}>
-        <ThreeScene modelPath={modelPath} />
+      <Suspense fallback={<Loader />}>
+        <Scene modelPath={modelPath} />
       </Suspense>
     </div>
   )

@@ -1,10 +1,13 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
 import Image from 'next/image'
 import ClientOnly from '@/app/components/ClientOnly'
+import { collection, getDocs } from 'firebase/firestore'
+import { db } from '@/app/lib/firebase'
+import { Loader } from '@/app/components/Loader'
 
 interface Case {
   id: string
@@ -16,37 +19,50 @@ interface Case {
   slug: string
 }
 
-const cases: Case[] = [
-  {
-    id: '1',
-    name: 'CORSAIR 4000D AIRFLOW Tempered Glass Mid-Tower ATX Case',
-    price: 149.99,
-    image: '/images/Corsair4000D.jpg',
-    description: 'High-airflow ATX case with mesh front panel and tempered glass side panel',
-    category: 'ATX',
-    slug: 'airflow-pro-atx'
-  },
-  {
-    id: '2',
-    name: 'Compact ITX',
-    price: 99.99,
-    image: '/cases/itx-case.jpg',
-    description: 'Minimalist ITX case perfect for small form factor builds',
-    category: 'ITX',
-    slug: 'compact-itx'
-  },
-  // Add more cases as needed
-]
-
 const categories = ['All', 'ATX', 'mATX', 'ITX', 'Full Tower']
 
 export default function CasesPage() {
   const [selectedCategory, setSelectedCategory] = useState('All')
   const [sortBy, setSortBy] = useState('featured')
+  const [cases, setCases] = useState<Case[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchCases = async () => {
+      try {
+        const querySnapshot = await getDocs(collection(db, 'products'))
+        const casesData = querySnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+        })) as Case[]
+        setCases(casesData)
+      } catch (error) {
+        console.error('Error fetching cases:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchCases()
+  }, [])
 
   const filteredCases = cases.filter(item => 
     selectedCategory === 'All' || item.category === selectedCategory
   )
+
+  const sortedCases = [...filteredCases].sort((a, b) => {
+    if (sortBy === 'price-low') {
+      return a.price - b.price
+    }
+    if (sortBy === 'price-high') {
+      return b.price - a.price
+    }
+    return 0 // featured
+  })
+
+  if (loading) {
+    return <Loader />
+  }
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100">
@@ -101,7 +117,7 @@ export default function CasesPage() {
 
           {/* Product Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {filteredCases.map((item) => (
+            {sortedCases.map((item) => (
               <Link href={`/cases/${item.slug}`} key={item.id} className="block h-full group">
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
