@@ -55,10 +55,6 @@ export default function AdminDashboard() {
   }>({ type: null, message: '' })
   const [editingProductId, setEditingProductId] = useState<string | null>(null)
 
-  useEffect(() => {
-    fetchProducts()
-  }, [fetchProducts])
-
   const fetchProducts = useCallback(async () => {
     try {
       const querySnapshot = await getDocs(collection(db, 'products'))
@@ -78,6 +74,10 @@ export default function AdminDashboard() {
       setLoading(false)
     }
   }, [editingProductId])
+
+  useEffect(() => {
+    fetchProducts()
+  }, [fetchProducts])
 
   const resetForm = () => {
     setFormData({
