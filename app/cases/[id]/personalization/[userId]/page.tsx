@@ -74,6 +74,18 @@ export default function PersonalizationPage() {
             throw new Error('No 3D model path found')
           }
 
+          // Verify the model URL is accessible
+          try {
+            const modelResponse = await fetch(data.model3D)
+            if (!modelResponse.ok) {
+              throw new Error('3D model file not accessible')
+            }
+            console.log('3D model file is accessible')
+          } catch (err) {
+            console.error('Error accessing 3D model:', err)
+            throw new Error('3D model file not accessible')
+          }
+
           setCaseData({
             id: querySnapshot.docs[0].id,
             name: data.name,

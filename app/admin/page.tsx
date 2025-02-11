@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { collection, getDocs, addDoc, deleteDoc, doc } from 'firebase/firestore'
+import { collection, getDocs, addDoc, deleteDoc, doc, updateDoc } from 'firebase/firestore'
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { db, storage } from '@/app/lib/firebase'
 import { Loader } from '@/app/components/Loader'
@@ -23,6 +23,7 @@ interface Product {
     maxCPUCoolerHeight: string
     includedFans: string
   }
+  slug: string
 }
 
 const CATEGORIES = ['ATX', 'mATX', 'ITX', 'Full Tower']
@@ -51,6 +52,7 @@ export default function AdminDashboard() {
     type: 'success' | 'error' | null;
     message: string;
   }>({ type: null, message: '' })
+  const [editingProductId, setEditingProductId] = useState<string | null>(null)
 
   useEffect(() => {
     fetchProducts()
@@ -64,11 +66,36 @@ export default function AdminDashboard() {
         ...doc.data()
       })) as Product[]
       setProducts(productsData)
+      
+      if (editingProductId) {
+        setEditingProductId(null)
+        resetForm()
+      }
     } catch (error) {
       console.error('Error fetching products:', error)
     } finally {
       setLoading(false)
     }
+  }
+
+  const resetForm = () => {
+    setFormData({
+      name: '',
+      price: '',
+      description: '',
+      category: '',
+      features: '',
+      dimensions: '',
+      weight: '',
+      formFactor: '',
+      maxGPULength: '',
+      maxCPUCoolerHeight: '',
+      includedFans: '',
+      slug: ''
+    })
+    setImage(null)
+    setModel3D(null)
+    setPreviewImage('')
   }
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -81,6 +108,26 @@ export default function AdminDashboard() {
       }
       reader.readAsDataURL(file)
     }
+  }
+
+  const handleEdit = (product: Product) => {
+    setEditingProductId(product.id)
+    setFormData({
+      name: product.name,
+      price: product.price.toString(),
+      description: product.description,
+      category: product.category,
+      features: product.features.join(', '),
+      dimensions: product.specifications.dimensions,
+      weight: product.specifications.weight,
+      formFactor: product.specifications.formFactor,
+      maxGPULength: product.specifications.maxGPULength,
+      maxCPUCoolerHeight: product.specifications.maxCPUCoolerHeight,
+      includedFans: product.specifications.includedFans,
+      slug: product.slug || ''
+    })
+    setPreviewImage(product.image)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -99,9 +146,14 @@ export default function AdminDashboard() {
       }
 
       if (model3D) {
-        const modelRef = ref(storage, `models/${Date.now()}-${model3D.name}`)
+        const modelFileName = `${Date.now()}-${model3D.name}`
+        const modelRef = ref(storage, `models/${modelFileName}`)
+        
+        console.log('Uploading 3D model:', modelFileName)
         await uploadBytes(modelRef, model3D)
+        
         modelUrl = await getDownloadURL(modelRef)
+        console.log('Model uploaded successfully:', modelUrl)
       }
 
       const productData = {
@@ -109,10 +161,10 @@ export default function AdminDashboard() {
         price: parseFloat(formData.price),
         description: formData.description,
         category: formData.category,
-        image: imageUrl,
-        model3D: modelUrl,
+        image: imageUrl || previewImage,
+        model3D: modelUrl || (editingProductId ? products.find(p => p.id === editingProductId)?.model3D || '' : ''),
         slug: formData.slug || formData.name.toLowerCase().replace(/\s+/g, '-'),
-        features: formData.features.split(',').map(f => f.trim()).filter(f => f),
+        features: formData.features.split('\n').filter(f => f.trim()),
         specifications: {
           dimensions: formData.dimensions,
           weight: formData.weight,
@@ -123,36 +175,27 @@ export default function AdminDashboard() {
         }
       }
 
-      await addDoc(collection(db, 'products'), productData)
+      if (editingProductId) {
+        await updateDoc(doc(db, 'products', editingProductId), productData)
+        setSubmitStatus({ 
+          type: 'success', 
+          message: 'Product updated successfully!' 
+        })
+      } else {
+        await addDoc(collection(db, 'products'), productData)
+        setSubmitStatus({ 
+          type: 'success', 
+          message: 'Product added successfully!' 
+        })
+      }
+
       await fetchProducts()
-      
-      // Reset form
-      setFormData({
-        name: '',
-        price: '',
-        description: '',
-        category: '',
-        features: '',
-        dimensions: '',
-        weight: '',
-        formFactor: '',
-        maxGPULength: '',
-        maxCPUCoolerHeight: '',
-        includedFans: '',
-        slug: ''
-      })
-      setImage(null)
-      setModel3D(null)
-      setPreviewImage('')
-      setSubmitStatus({ 
-        type: 'success', 
-        message: 'Product added successfully!' 
-      })
+      resetForm()
     } catch (error) {
-      console.error('Error adding product:', error)
+      console.error('Error saving product:', error)
       setSubmitStatus({ 
         type: 'error', 
-        message: 'Error adding product. Please try again.' 
+        message: `Error ${editingProductId ? 'updating' : 'adding'} product: ${error instanceof Error ? error.message : 'Unknown error'}` 
       })
     } finally {
       setLoading(false)
@@ -181,7 +224,9 @@ export default function AdminDashboard() {
   return (
     <div className="space-y-10">
       <div className="bg-white shadow-lg rounded-xl p-8">
-        <h2 className="text-2xl font-bold mb-6 text-gray-800">Add New Product</h2>
+        <h2 className="text-2xl font-bold mb-6 text-gray-800">
+          {editingProductId ? 'Edit Product' : 'Add New Product'}
+        </h2>
         
         {submitStatus.type && (
           <div className={`mb-6 p-4 rounded-lg ${
@@ -385,8 +430,18 @@ export default function AdminDashboard() {
             disabled={loading}
             className="w-full bg-blue-600 text-white py-3 px-6 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 transition-colors duration-200"
           >
-            {loading ? 'Adding Product...' : 'Add Product'}
+            {loading ? 'Saving...' : editingProductId ? 'Update Product' : 'Add Product'}
           </button>
+
+          {editingProductId && (
+            <button
+              type="button"
+              onClick={resetForm}
+              className="mt-4 w-full bg-gray-100 text-gray-600 py-3 px-6 rounded-lg hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors duration-200"
+            >
+              Cancel Edit
+            </button>
+          )}
         </form>
       </div>
 
@@ -406,12 +461,20 @@ export default function AdminDashboard() {
               <h3 className="mt-4 text-lg font-semibold text-gray-800 line-clamp-2">{product.name}</h3>
               <p className="text-blue-600 font-bold mt-2">${product.price}</p>
               <p className="text-gray-600 mt-2 line-clamp-2">{product.description}</p>
-              <button
-                onClick={() => handleDelete(product.id)}
-                className="mt-4 w-full px-4 py-2 text-red-600 border border-red-600 rounded-lg hover:bg-red-50 transition-colors duration-200"
-              >
-                Delete Product
-              </button>
+              <div className="mt-4 grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => handleEdit(product)}
+                  className="px-4 py-2 text-blue-600 border border-blue-600 rounded-lg hover:bg-blue-50 transition-colors duration-200"
+                >
+                  Edit
+                </button>
+                <button
+                  onClick={() => handleDelete(product.id)}
+                  className="px-4 py-2 text-red-600 border border-red-600 rounded-lg hover:bg-red-50 transition-colors duration-200"
+                >
+                  Delete
+                </button>
+              </div>
             </div>
           ))}
         </div>

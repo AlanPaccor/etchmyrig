@@ -12,7 +12,10 @@ interface ThreeSceneProps {
 }
 
 export default function ThreeScene({ modelPath }: ThreeSceneProps) {
+  console.log('ThreeScene component rendering with modelPath:', modelPath)
+  
   const containerRef = useRef<HTMLDivElement>(null)
+  const rendererRef = useRef<THREE.WebGLRenderer | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [loadingProgress, setLoadingProgress] = useState(0)
@@ -21,7 +24,7 @@ export default function ThreeScene({ modelPath }: ThreeSceneProps) {
     if (!containerRef.current) return
 
     let mounted = true
-    console.log('Initializing Three.js scene with model:', modelPath)
+    console.log('Starting scene initialization with model:', modelPath)
 
     // Scene setup
     const scene = new THREE.Scene()
@@ -45,6 +48,7 @@ export default function ThreeScene({ modelPath }: ThreeSceneProps) {
     renderer.setPixelRatio(window.devicePixelRatio)
     renderer.shadowMap.enabled = true
     containerRef.current.appendChild(renderer.domElement)
+    rendererRef.current = renderer
 
     // Lights
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.5)
@@ -75,13 +79,12 @@ export default function ThreeScene({ modelPath }: ThreeSceneProps) {
     dracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/')
     loader.setDRACOLoader(dracoLoader)
 
-    console.log('Starting to load model from:', modelPath)
-
+    console.log('Loading model from:', modelPath)
     loader.load(
       modelPath,
       (gltf) => {
         if (!mounted) return
-        console.log('Model loaded successfully:', gltf)
+        console.log('Model loaded successfully')
         scene.remove(cube)
         
         const model = gltf.scene
@@ -98,23 +101,17 @@ export default function ThreeScene({ modelPath }: ThreeSceneProps) {
         model.position.copy(center).multiplyScalar(-scale)
 
         scene.add(model)
-
-        // Update camera position
-        const distance = 4
-        camera.position.set(distance, distance, distance)
-        controls.target.copy(new THREE.Vector3(0, 0, 0))
-        controls.update()
-        
         setIsLoading(false)
       },
       (progress) => {
-        const percentComplete = (progress.loaded / progress.total) * 100
-        console.log('Loading progress:', percentComplete.toFixed(2) + '%')
-        setLoadingProgress(percentComplete)
+        if (progress.total > 0) {
+          const percentComplete = (progress.loaded / progress.total) * 100
+          setLoadingProgress(percentComplete)
+        }
       },
       (error) => {
         console.error('Error loading model:', error)
-        setError(error.message)
+        setError(`Failed to load model: ${error.message}`)
         setIsLoading(false)
       }
     )
@@ -123,40 +120,30 @@ export default function ThreeScene({ modelPath }: ThreeSceneProps) {
     function animate() {
       if (!mounted) return
       requestAnimationFrame(animate)
-      cube.rotation.x += 0.01
-      cube.rotation.y += 0.01
+      if (cube.parent === scene) {
+        cube.rotation.x += 0.01
+        cube.rotation.y += 0.01
+      }
       controls.update()
       renderer.render(scene, camera)
     }
     animate()
 
-    // Handle window resize
-    const handleResize = () => {
-      if (!mounted) return
-      camera.aspect = window.innerWidth / window.innerHeight
-      camera.updateProjectionMatrix()
-      renderer.setSize(window.innerWidth, window.innerHeight)
-    }
-    window.addEventListener('resize', handleResize)
-
-    // Cleanup
     return () => {
       mounted = false
-      window.removeEventListener('resize', handleResize)
-      
       if (containerRef.current?.contains(renderer.domElement)) {
         containerRef.current.removeChild(renderer.domElement)
       }
-      
       renderer.dispose()
       geometry.dispose()
       material.dispose()
       dracoLoader.dispose()
+      rendererRef.current = null
     }
   }, [modelPath])
 
   return (
-    <div className="relative w-full h-full">
+    <div className="fixed inset-0 w-full h-full">
       <div ref={containerRef} className="w-full h-full" />
       {isLoading && (
         <div className="absolute inset-0 flex items-center justify-center bg-gray-900 bg-opacity-75">
@@ -169,7 +156,8 @@ export default function ThreeScene({ modelPath }: ThreeSceneProps) {
       {error && (
         <div className="absolute inset-0 flex items-center justify-center bg-red-900 bg-opacity-75">
           <div className="text-white text-center">
-            <p>Error loading model: {error}</p>
+            <p>{error}</p>
+            <p className="mt-2 text-sm opacity-75">Model URL: {modelPath}</p>
           </div>
         </div>
       )}
