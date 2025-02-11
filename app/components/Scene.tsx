@@ -13,11 +13,7 @@ function Model({ modelPath }: SceneProps) {
   const { scene } = useGLTF(`/api/model?url=${encodeURIComponent(modelPath)}`)
 
   try {
-    return (
-      <mesh>
-        <primitive object={scene as Object3D} scale={1.5} position={[0, 0, 0]} />
-      </mesh>
-    )
+    return <primitive object={scene as Object3D} scale={1.5} position={[0, 0, 0]} />
   } catch (err) {
     console.error('Error rendering model:', err)
     return null
