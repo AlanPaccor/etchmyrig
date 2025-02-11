@@ -1,6 +1,6 @@
 'use client'
 
-import { Canvas } from '@react-three/fiber'
+import { Canvas, primitive } from '@react-three/fiber'
 import { OrbitControls, Stage, useGLTF } from '@react-three/drei'
 import { Suspense } from 'react'
 
