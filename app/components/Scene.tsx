@@ -2,29 +2,24 @@
 
 import { Canvas } from '@react-three/fiber'
 import { OrbitControls, Stage, useGLTF } from '@react-three/drei'
-import { Suspense, useState, useEffect } from 'react'
+import { Suspense, useState } from 'react'
 
-function Model({ modelPath }: { modelPath: string }) {
-  const [error, setError] = useState<string | null>(null)
+interface ModelProps {
+  modelPath: string
+}
 
+function Model({ modelPath }: ModelProps) {
+  const { scene } = useGLTF(`/api/model?url=${encodeURIComponent(modelPath)}`)
+  
   try {
-    // Use the proxy route instead of direct Firebase URL
-    const proxyPath = `/api/model?url=${encodeURIComponent(modelPath)}`
-    const { scene } = useGLTF(proxyPath)
     return <primitive object={scene} scale={1.5} position={[0, 0, 0]} />
   } catch (err) {
-    setError((err as Error).message)
+    console.error('Error rendering model:', err)
     return null
   }
 }
 
-export default function Scene({ modelPath }: { modelPath: string }) {
-  const [error, setError] = useState<string | null>(null)
-
-  if (error) {
-    return <div className="text-red-500">Error loading model: {error}</div>
-  }
-
+export default function Scene({ modelPath }: ModelProps) {
   return (
     <Canvas
       camera={{ position: [5, 5, 5], fov: 75 }}
@@ -62,4 +57,7 @@ export default function Scene({ modelPath }: { modelPath: string }) {
       </Suspense>
     </Canvas>
   )
-} 
+}
+
+// Preload the model to prevent loading issues
+useGLTF.preload('/api/model') 
