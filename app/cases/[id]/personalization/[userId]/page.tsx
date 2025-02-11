@@ -157,6 +157,62 @@ export default function PersonalizationPage() {
 
   return (
     <div className="w-full h-screen bg-gray-900">
+      <div className="p-4">
+        {/* Panel Selection */}
+        <div className="mb-4">
+          {AVAILABLE_PANELS.map((panel) => (
+            <button
+              key={panel.id}
+              onClick={() => handlePanelSelect(panel.id)}
+              className={`mr-2 px-4 py-2 rounded ${
+                selectedPanel === panel.id ? 'bg-blue-600' : 'bg-gray-700'
+              } text-white`}
+            >
+              {panel.name}
+            </button>
+          ))}
+        </div>
+
+        {/* Image Upload */}
+        <div className="mb-4">
+          <input
+            type="file"
+            accept="image/*"
+            onChange={handleImageUpload}
+            className="text-white"
+          />
+        </div>
+
+        {/* Preview and Apply */}
+        {previewImage && selectedPanel && (
+          <div className="mb-4">
+            <img
+              src={previewImage}
+              alt="Preview"
+              className="w-48 h-48 object-cover rounded"
+            />
+            <button
+              onClick={handleApplyDesign}
+              className="mt-2 px-4 py-2 bg-blue-600 text-white rounded"
+            >
+              Apply Design
+            </button>
+          </div>
+        )}
+
+        {/* Display uploaded image if available */}
+        {uploadedImage && (
+          <div className="mb-4">
+            <h3 className="text-white mb-2">Applied Design:</h3>
+            <img
+              src={uploadedImage}
+              alt="Applied Design"
+              className="w-48 h-48 object-cover rounded"
+            />
+          </div>
+        )}
+      </div>
+
       <ErrorBoundary FallbackComponent={ErrorFallback}>
         <ThreeScene modelPath={caseData.model3D} />
       </ErrorBoundary>
