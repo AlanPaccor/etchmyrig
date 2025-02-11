@@ -3,6 +3,8 @@
 import { Canvas } from '@react-three/fiber'
 import { OrbitControls, Stage, useGLTF } from '@react-three/drei'
 import { Suspense } from 'react'
+import { primitive } from '@react-three/fiber'
+import { Primitive } from '@react-three/fiber'
 
 interface SceneProps {
   modelPath: string
