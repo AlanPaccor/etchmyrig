@@ -1,38 +1,18 @@
 'use client'
 
-import { Canvas, useLoader } from '@react-three/fiber'
+import { Canvas } from '@react-three/fiber'
 import { OrbitControls, Stage, useGLTF } from '@react-three/drei'
-import { Suspense, useEffect, useState } from 'react'
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader'
-import { Group } from 'three'
-import { PrimitiveProps } from '@react-three/fiber'
+import { Suspense } from 'react'
 
 interface SceneProps {
   modelPath: string
 }
 
-export function Scene({ modelPath }: SceneProps) {
-  const [scene, setScene] = useState<Group | null>(null)
-  const gltf = useLoader(GLTFLoader, modelPath)
-
-  useEffect(() => {
-    if (gltf) {
-      setScene(gltf.scene)
-    }
-  }, [gltf])
-
-  if (!scene) {
-    return null
-  }
+function Model({ modelPath }: SceneProps) {
+  const { scene } = useGLTF(`/api/model?url=${encodeURIComponent(modelPath)}`)
 
   try {
-    return (
-      <primitive 
-        object={scene} 
-        scale={1.5} 
-        position={[0, 0, 0]} 
-      /> as React.ReactElement<PrimitiveProps>
-    )
+    return <primitive object={scene} scale={1.5} position={[0, 0, 0]} />
   } catch (err) {
     console.error('Error rendering model:', err)
     return null
@@ -63,7 +43,7 @@ export default function Scene({ modelPath }: SceneProps) {
           adjustCamera={false}
           shadows
         >
-          <Scene modelPath={modelPath} />
+          <Model modelPath={modelPath} />
         </Stage>
         <OrbitControls 
           autoRotate 
