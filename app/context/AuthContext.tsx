@@ -4,11 +4,13 @@ import { createContext, useContext, useEffect, useState } from 'react';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { auth } from '../firebase/config';
 
-// Create the context with a default value
-const AuthContext = createContext<{
+interface AuthContextType {
   user: User | null
   loading: boolean
-}>({
+}
+
+// Create the context with a default value
+const AuthContext = createContext<AuthContextType>({
   user: null,
   loading: true
 });
@@ -38,8 +40,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => unsubscribe();
   }, []);
 
+  const value: AuthContextType = {
+    user,
+    loading
+  };
+
   return (
-    <AuthContext.Provider value={{ user, loading }}>
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );
