@@ -7,9 +7,7 @@ import { Loader } from '@/app/components/Loader'
 import dynamic from 'next/dynamic'
 import { collection, query, where, getDocs } from 'firebase/firestore'
 import { db } from '@/app/lib/firebase'
-import Link from 'next/link'
 import { ErrorBoundary } from 'react-error-boundary'
-import Image from 'next/image'
 
 // Dynamically import ThreeScene with no SSR
 const ThreeScene = dynamic(() => import('@/app/components/ThreeScene'), {
@@ -30,11 +28,17 @@ interface PanelSelection {
   position: [number, number, number]
 }
 
+// If these variables/functions will be used later, you can temporarily disable the lint rule:
+/* eslint-disable @typescript-eslint/no-unused-vars */
 const AVAILABLE_PANELS: PanelSelection[] = [
   { id: 'front', name: 'Front Panel', position: [0, 0, 1] },
   { id: 'side', name: 'Side Panel', position: [1, 0, 0] },
   { id: 'top', name: 'Top Panel', position: [0, 1, 0] },
 ]
+const [selectedPanel, setSelectedPanel] = useState<string | null>(null)
+const [uploadedImage, setUploadedImage] = useState<string | null>(null)
+const [previewImage, setPreviewImage] = useState<string | null>(null)
+/* eslint-enable @typescript-eslint/no-unused-vars */
 
 function ErrorFallback({ error }: { error: Error }) {
   return (
@@ -53,9 +57,6 @@ export default function PersonalizationPage() {
   const [loading, setLoading] = useState(true)
   const [caseData, setCaseData] = useState<CaseData | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [selectedPanel, setSelectedPanel] = useState<string | null>(null)
-  const [uploadedImage, setUploadedImage] = useState<string | null>(null)
-  const [previewImage, setPreviewImage] = useState<string | null>(null)
 
   useEffect(() => {
     const fetchData = async () => {

@@ -23,6 +23,9 @@ export default function ThreeScene({ modelPath }: ThreeSceneProps) {
   useEffect(() => {
     if (!containerRef.current) return
 
+    // Store ref value in a variable
+    const container = containerRef.current
+    
     let mounted = true
     console.log('Starting scene initialization with model:', modelPath)
 
@@ -47,7 +50,7 @@ export default function ThreeScene({ modelPath }: ThreeSceneProps) {
     renderer.setSize(window.innerWidth, window.innerHeight)
     renderer.setPixelRatio(window.devicePixelRatio)
     renderer.shadowMap.enabled = true
-    containerRef.current.appendChild(renderer.domElement)
+    container.appendChild(renderer.domElement)
     rendererRef.current = renderer
 
     // Lights
@@ -131,8 +134,8 @@ export default function ThreeScene({ modelPath }: ThreeSceneProps) {
 
     return () => {
       mounted = false
-      if (containerRef.current?.contains(renderer.domElement)) {
-        containerRef.current.removeChild(renderer.domElement)
+      if (container?.contains(renderer.domElement)) {
+        container.removeChild(renderer.domElement)
       }
       renderer.dispose()
       geometry.dispose()

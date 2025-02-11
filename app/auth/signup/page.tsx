@@ -6,6 +6,11 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 
+interface AuthError {
+  code: string
+  message: string
+}
+
 export default function SignUp() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -14,13 +19,14 @@ export default function SignUp() {
   const { signUp, signInWithGoogle } = useAuth();
   const router = useRouter();
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     try {
       await signUp(email, password);
       router.push('/');
-    } catch (error: any) {
-      setError(error.message);
+    } catch (error) {
+      const authError = error as AuthError
+      setError(authError.message)
     }
   };
 
@@ -28,8 +34,9 @@ export default function SignUp() {
     try {
       await signInWithGoogle();
       router.push('/');
-    } catch (error: any) {
-      setError(error.message);
+    } catch (error) {
+      const authError = error as AuthError
+      setError(authError.message)
     }
   };
 
