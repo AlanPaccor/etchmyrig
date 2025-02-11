@@ -4,6 +4,20 @@ import { Canvas } from '@react-three/fiber'
 import { OrbitControls, Stage, useGLTF } from '@react-three/drei'
 import { Suspense } from 'react'
 import { Object3D } from 'three'
+import { PrimitiveProps } from '@react-three/fiber'
+
+// Add Three.js element types to JSX namespace
+declare global {
+  namespace JSX {
+    interface IntrinsicElements {
+      primitive: PrimitiveProps
+      ambientLight: any
+      hemisphereLight: any
+      spotLight: any
+      pointLight: any
+    }
+  }
+}
 
 interface SceneProps {
   modelPath: string
