@@ -8,6 +8,11 @@ import Image from 'next/image';
 import { sendPasswordResetEmail } from 'firebase/auth';
 import { auth } from '@/app/lib/firebase';
 
+interface FirebaseError {
+  message: string;
+  code?: string;
+}
+
 interface SignInError {
   message: string;
   code?: string;
@@ -29,17 +34,19 @@ export default function SignIn() {
     try {
       await signIn(email, password);
       router.push('/');
-    } catch (error: any) {
-      setError(error.message);
+    } catch (error: unknown) {
+      const firebaseError = error as FirebaseError;
+      setError(firebaseError.message);
     }
   };
 
-  const handleGoogleSignIn = async (e: React.MouseEvent<HTMLButtonElement>) => {
+  const handleGoogleSignIn = async () => {
     try {
       await signInWithGoogle();
       router.push('/');
-    } catch (error: any) {
-      setError(error.message);
+    } catch (error: unknown) {
+      const firebaseError = error as FirebaseError;
+      setError(firebaseError.message);
     }
   };
 
@@ -52,13 +59,10 @@ export default function SignIn() {
         setShowResetModal(false);
         setResetEmailSent(false);
       }, 3000);
-    } catch (error: any) {
-      setError(error.message);
+    } catch (error: unknown) {
+      const firebaseError = error as FirebaseError;
+      setError(firebaseError.message);
     }
-  };
-
-  const handleError = (error: SignInError) => {
-    // ... existing code ...
   };
 
   return (

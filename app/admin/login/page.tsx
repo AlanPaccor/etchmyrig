@@ -16,8 +16,10 @@ export default function AdminLogin() {
     try {
       await signInWithEmailAndPassword(auth, email, password)
       router.push('/admin')
-    } catch (err) {
-      setError('Invalid credentials')
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'An error occurred'
+      console.error('Login error:', errorMessage)
+      setError(errorMessage)
     }
   }
 

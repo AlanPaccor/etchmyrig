@@ -108,13 +108,17 @@ export default function PersonalizationPage() {
     }
   }, [params.id, user, fetchData])
 
-  /* eslint-disable @typescript-eslint/no-unused-vars */
+  const handlePanelSelect = (panelId: string) => {
+    setSelectedPanel(panelId)
+  }
+
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
       const reader = new FileReader()
       reader.onloadend = () => {
         setPreviewImage(reader.result as string)
+        setUploadedImage(reader.result as string)
       }
       reader.readAsDataURL(file)
     }
@@ -131,7 +135,6 @@ export default function PersonalizationPage() {
       // Do something with selectedPanel
     }
   }, [selectedPanel])
-  /* eslint-enable @typescript-eslint/no-unused-vars */
 
   if (loading) {
     return (
