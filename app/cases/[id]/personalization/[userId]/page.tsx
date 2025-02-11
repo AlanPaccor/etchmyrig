@@ -8,6 +8,7 @@ import dynamic from 'next/dynamic'
 import { collection, query, where, getDocs } from 'firebase/firestore'
 import { db } from '@/app/lib/firebase'
 import { ErrorBoundary } from 'react-error-boundary'
+import Image from 'next/image'
 
 // Dynamically import ThreeScene with no SSR
 const ThreeScene = dynamic(() => import('@/app/components/ThreeScene'), {
@@ -29,7 +30,6 @@ interface PanelSelection {
 }
 
 // Define available panels as a constant
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const AVAILABLE_PANELS: PanelSelection[] = [
   { id: 'front', name: 'Front Panel', position: [0, 0, 1] },
   { id: 'side', name: 'Side Panel', position: [1, 0, 0] },
@@ -186,9 +186,11 @@ export default function PersonalizationPage() {
         {/* Preview and Apply */}
         {previewImage && selectedPanel && (
           <div className="mb-4">
-            <img
+            <Image 
               src={previewImage}
               alt="Preview"
+              width={192}
+              height={192}
               className="w-48 h-48 object-cover rounded"
             />
             <button
@@ -204,9 +206,11 @@ export default function PersonalizationPage() {
         {uploadedImage && (
           <div className="mb-4">
             <h3 className="text-white mb-2">Applied Design:</h3>
-            <img
+            <Image 
               src={uploadedImage}
               alt="Applied Design"
+              width={192}
+              height={192}
               className="w-48 h-48 object-cover rounded"
             />
           </div>
