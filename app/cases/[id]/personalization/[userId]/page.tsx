@@ -1,7 +1,7 @@
 'use client'
 
 import { useParams } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useAuth } from '@/app/hooks/useAuth'
 import { Loader } from '@/app/components/Loader'
 import dynamic from 'next/dynamic'
@@ -56,8 +56,8 @@ export default function PersonalizationPage() {
   const [uploadedImage, setUploadedImage] = useState<string | null>(null)
   const [previewImage, setPreviewImage] = useState<string | null>(null)
 
-  // Move fetchData outside useEffect to fix dependency warning
-  const fetchData = async () => {
+  // Move fetchData inside useCallback to fix dependency warning
+  const fetchData = useCallback(async () => {
     try {
       const productsRef = collection(db, 'products')
       const querySnapshot = await getDocs(query(
@@ -99,7 +99,7 @@ export default function PersonalizationPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [params.id])
 
   useEffect(() => {
     if (params.id && user) {
