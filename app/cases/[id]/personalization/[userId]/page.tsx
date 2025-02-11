@@ -28,17 +28,12 @@ interface PanelSelection {
   position: [number, number, number]
 }
 
-// If these variables/functions will be used later, you can temporarily disable the lint rule:
-/* eslint-disable @typescript-eslint/no-unused-vars */
+// Define available panels as a constant
 const AVAILABLE_PANELS: PanelSelection[] = [
   { id: 'front', name: 'Front Panel', position: [0, 0, 1] },
   { id: 'side', name: 'Side Panel', position: [1, 0, 0] },
   { id: 'top', name: 'Top Panel', position: [0, 1, 0] },
 ]
-const [selectedPanel, setSelectedPanel] = useState<string | null>(null)
-const [uploadedImage, setUploadedImage] = useState<string | null>(null)
-const [previewImage, setPreviewImage] = useState<string | null>(null)
-/* eslint-enable @typescript-eslint/no-unused-vars */
 
 function ErrorFallback({ error }: { error: Error }) {
   return (
@@ -57,58 +52,62 @@ export default function PersonalizationPage() {
   const [loading, setLoading] = useState(true)
   const [caseData, setCaseData] = useState<CaseData | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [selectedPanel, setSelectedPanel] = useState<string | null>(null)
+  const [uploadedImage, setUploadedImage] = useState<string | null>(null)
+  const [previewImage, setPreviewImage] = useState<string | null>(null)
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const productsRef = collection(db, 'products')
-        const querySnapshot = await getDocs(query(
-          productsRef,
-          where('slug', '==', params.id)
-        ))
+  // Move fetchData outside useEffect to fix dependency warning
+  const fetchData = async () => {
+    try {
+      const productsRef = collection(db, 'products')
+      const querySnapshot = await getDocs(query(
+        productsRef,
+        where('slug', '==', params.id)
+      ))
+      
+      if (!querySnapshot.empty) {
+        const data = querySnapshot.docs[0].data()
+        console.log('Model3D URL:', data.model3D)
         
-        if (!querySnapshot.empty) {
-          const data = querySnapshot.docs[0].data()
-          console.log('Model3D URL:', data.model3D)
-          
-          if (!data.model3D) {
-            throw new Error('No 3D model path found')
-          }
+        if (!data.model3D) {
+          throw new Error('No 3D model path found')
+        }
 
-          // Verify the model URL is accessible
-          try {
-            const modelResponse = await fetch(data.model3D)
-            if (!modelResponse.ok) {
-              throw new Error('3D model file not accessible')
-            }
-            console.log('3D model file is accessible')
-          } catch (err) {
-            console.error('Error accessing 3D model:', err)
+        try {
+          const modelResponse = await fetch(data.model3D)
+          if (!modelResponse.ok) {
             throw new Error('3D model file not accessible')
           }
-
-          setCaseData({
-            id: querySnapshot.docs[0].id,
-            name: data.name,
-            model3D: data.model3D,
-            image: data.image
-          })
-        } else {
-          setError('Case not found')
+          console.log('3D model file is accessible')
+        } catch (err) {
+          console.error('Error accessing 3D model:', err)
+          throw new Error('3D model file not accessible')
         }
-      } catch (err) {
-        console.error('Error:', err)
-        setError(err instanceof Error ? err.message : 'Failed to load case data')
-      } finally {
-        setLoading(false)
-      }
-    }
 
+        setCaseData({
+          id: querySnapshot.docs[0].id,
+          name: data.name,
+          model3D: data.model3D,
+          image: data.image
+        })
+      } else {
+        setError('Case not found')
+      }
+    } catch (err) {
+      console.error('Error:', err)
+      setError(err instanceof Error ? err.message : 'Failed to load case data')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
     if (params.id && user) {
       fetchData()
     }
-  }, [params.id, user])
+  }, [params.id, user, fetchData])
 
+  /* eslint-disable @typescript-eslint/no-unused-vars */
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
@@ -123,10 +122,9 @@ export default function PersonalizationPage() {
   const handleApplyDesign = () => {
     if (previewImage && selectedPanel) {
       setUploadedImage(previewImage)
-      // Here you would typically upload the image to your storage
-      // and update the 3D model texture
     }
   }
+  /* eslint-enable @typescript-eslint/no-unused-vars */
 
   if (loading) {
     return (
