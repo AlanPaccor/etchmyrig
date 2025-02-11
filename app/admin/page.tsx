@@ -1,10 +1,11 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { collection, getDocs, addDoc, deleteDoc, doc, updateDoc } from 'firebase/firestore'
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { db, storage } from '@/app/lib/firebase'
 import { Loader } from '@/app/components/Loader'
+import Image from 'next/image'
 
 interface Product {
   id: string
@@ -56,9 +57,9 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     fetchProducts()
-  }, [])
+  }, [fetchProducts])
 
-  const fetchProducts = async () => {
+  const fetchProducts = useCallback(async () => {
     try {
       const querySnapshot = await getDocs(collection(db, 'products'))
       const productsData = querySnapshot.docs.map(doc => ({
@@ -76,7 +77,7 @@ export default function AdminDashboard() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [editingProductId])
 
   const resetForm = () => {
     setFormData({
@@ -404,7 +405,13 @@ export default function AdminDashboard() {
               />
               {previewImage && (
                 <div className="mt-2">
-                  <img src={previewImage} alt="Preview" className="w-48 h-48 object-cover rounded-lg" />
+                  <Image
+                    src={previewImage}
+                    alt="Preview"
+                    width={100}
+                    height={100}
+                    className="w-48 h-48 object-cover rounded-lg"
+                  />
                 </div>
               )}
             </div>
@@ -452,9 +459,11 @@ export default function AdminDashboard() {
           {products.map((product) => (
             <div key={product.id} className="border rounded-xl p-4 hover:shadow-lg transition-shadow duration-200">
               <div className="relative pt-[100%]">
-                <img 
-                  src={product.image} 
-                  alt={product.name} 
+                <Image
+                  src={product.image}
+                  alt={product.name}
+                  width={100}
+                  height={100}
                   className="absolute inset-0 w-full h-full object-cover rounded-lg"
                 />
               </div>

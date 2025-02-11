@@ -29,6 +29,7 @@ interface PanelSelection {
 }
 
 // Define available panels as a constant
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const AVAILABLE_PANELS: PanelSelection[] = [
   { id: 'front', name: 'Front Panel', position: [0, 0, 1] },
   { id: 'side', name: 'Side Panel', position: [1, 0, 0] },
@@ -124,6 +125,12 @@ export default function PersonalizationPage() {
       setUploadedImage(previewImage)
     }
   }
+
+  useEffect(() => {
+    if (selectedPanel) {
+      // Do something with selectedPanel
+    }
+  }, [selectedPanel])
   /* eslint-enable @typescript-eslint/no-unused-vars */
 
   if (loading) {

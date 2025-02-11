@@ -8,6 +8,11 @@ import Image from 'next/image';
 import { sendPasswordResetEmail } from 'firebase/auth';
 import { auth } from '@/app/lib/firebase';
 
+interface SignInError {
+  message: string;
+  code?: string;
+}
+
 export default function SignIn() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -29,7 +34,7 @@ export default function SignIn() {
     }
   };
 
-  const handleGoogleSignIn = async () => {
+  const handleGoogleSignIn = async (e: React.MouseEvent<HTMLButtonElement>) => {
     try {
       await signInWithGoogle();
       router.push('/');
@@ -50,6 +55,10 @@ export default function SignIn() {
     } catch (error: any) {
       setError(error.message);
     }
+  };
+
+  const handleError = (error: SignInError) => {
+    // ... existing code ...
   };
 
   return (
@@ -167,7 +176,7 @@ export default function SignIn() {
         </div>
 
         <p className="text-center text-sm text-gray-600">
-          Don't have an account?{' '}
+          Don&apos;t have an account?{' '}
           <Link href="/auth/signup" className="text-blue-600 hover:text-blue-700 font-semibold hover:underline transition-colors">
             Sign up
           </Link>
@@ -189,7 +198,7 @@ export default function SignIn() {
 
             <h3 className="text-2xl font-bold text-gray-900 mb-2">Reset Password</h3>
             <p className="text-gray-600 mb-6">
-              Enter your email address and we'll send you a link to reset your password.
+              Enter your email address and we&apos;ll send you a link to reset your password.
             </p>
 
             {resetEmailSent ? (
