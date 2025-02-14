@@ -10,8 +10,8 @@ import { db } from '@/app/lib/firebase'
 import { ErrorBoundary } from 'react-error-boundary'
 import Image from 'next/image'
 
-// Dynamically import ThreeScene with no SSR
-const ThreeScene = dynamic(() => import('@/app/components/ThreeScene'), {
+// Dynamically import Scene with no SSR
+const Scene = dynamic(() => import('@/app/components/Scene'), {
   ssr: false,
   loading: () => <Loader />
 })
@@ -68,27 +68,14 @@ export default function PersonalizationPage() {
       
       if (!querySnapshot.empty) {
         const data = querySnapshot.docs[0].data()
-        console.log('Model3D URL:', data.model3D)
         
-        if (!data.model3D) {
-          throw new Error('No 3D model path found')
-        }
-
-        try {
-          const modelResponse = await fetch(data.model3D)
-          if (!modelResponse.ok) {
-            throw new Error('3D model file not accessible')
-          }
-          console.log('3D model file is accessible')
-        } catch (err) {
-          console.error('Error accessing 3D model:', err)
-          throw new Error('3D model file not accessible')
-        }
+        // Use local model path instead of Firebase URL
+        const localModelPath = '/3d/Corsair4000D-3D.glb'
 
         setCaseData({
           id: querySnapshot.docs[0].id,
           name: data.name,
-          model3D: data.model3D,
+          model3D: localModelPath,  // Use local path
           image: data.image
         })
       } else {
@@ -218,7 +205,7 @@ export default function PersonalizationPage() {
       </div>
 
       <ErrorBoundary FallbackComponent={ErrorFallback}>
-        <ThreeScene modelPath={caseData.model3D} />
+        <Scene modelPath={caseData.model3D} />
       </ErrorBoundary>
     </div>
   )

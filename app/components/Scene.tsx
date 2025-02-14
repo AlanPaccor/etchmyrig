@@ -1,78 +1,21 @@
 'use client'
 
-import { Canvas, PrimitiveProps, ThreeElements } from '@react-three/fiber'
-import { OrbitControls, Stage, useGLTF } from '@react-three/drei'
+import dynamic from 'next/dynamic'
 import { Suspense } from 'react'
-import { Object3D } from 'three'
 
-// Extend ThreeElements to include our components
-interface CustomThreeElements extends ThreeElements {
-  primitive: PrimitiveProps
-}
-
-// Augment the JSX elements
-declare module '@react-three/fiber' {
-  interface ThreeElements extends CustomThreeElements {}
-}
+const SceneImpl = dynamic(() => import('./SceneImpl'), {
+  ssr: false,
+  loading: () => null
+})
 
 interface SceneProps {
   modelPath: string
 }
 
-function Model({ modelPath }: SceneProps) {
-  const { scene } = useGLTF(`/api/model?url=${encodeURIComponent(modelPath)}`)
-
-  try {
-    return <primitive 
-      object={scene as unknown as Object3D} 
-      scale={1.5} 
-      position={[0, 0, 0]} 
-    />
-  } catch (err) {
-    console.error('Error rendering model:', err)
-    return null
-  }
-}
-
 export default function Scene({ modelPath }: SceneProps) {
   return (
-    <Canvas
-      camera={{ position: [5, 5, 5], fov: 75 }}
-      style={{ background: '#f0f0f0' }}
-    >
-      <ambientLight intensity={1} />
-      <hemisphereLight intensity={1} />
-      <spotLight 
-        position={[10, 10, 10]} 
-        angle={0.15} 
-        penumbra={1} 
-        intensity={1.5}
-        castShadow
-      />
-      <pointLight position={[-10, -10, -10]} intensity={0.5} />
-      
-      <Suspense fallback={null}>
-        <Stage
-          environment="city"
-          intensity={0.6}
-          adjustCamera={false}
-          shadows
-        >
-          <Model modelPath={modelPath} />
-        </Stage>
-        <OrbitControls 
-          autoRotate 
-          autoRotateSpeed={1}
-          enableZoom={true}
-          enablePan={true}
-          minDistance={2}
-          maxDistance={20}
-          target={[0, 0, 0]}
-        />
-      </Suspense>
-    </Canvas>
+    <Suspense fallback={null}>
+      <SceneImpl modelPath={modelPath} />
+    </Suspense>
   )
-}
-
-// Preload the model to prevent loading issues
-useGLTF.preload('/api/model') 
+} 
