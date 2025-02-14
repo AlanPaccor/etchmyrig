@@ -1,14 +1,13 @@
 'use client'
 
 import { useParams } from 'next/navigation'
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState } from 'react'
 import { useAuth } from '@/app/hooks/useAuth'
 import { Loader } from '@/app/components/Loader'
 import dynamic from 'next/dynamic'
 import { collection, query, where, getDocs } from 'firebase/firestore'
 import { db } from '@/app/lib/firebase'
 import { ErrorBoundary } from 'react-error-boundary'
-import Image from 'next/image'
 
 // Dynamically import Scene with no SSR
 const Scene = dynamic(() => import('@/app/components/Scene'), {
@@ -22,19 +21,6 @@ interface CaseData {
   model3D: string
   image: string
 }
-
-interface PanelSelection {
-  id: string
-  name: string
-  position: [number, number, number]
-}
-
-// Define available panels as a constant
-const AVAILABLE_PANELS: PanelSelection[] = [
-  { id: 'front', name: 'Front Panel', position: [0, 0, 1] },
-  { id: 'side', name: 'Side Panel', position: [1, 0, 0] },
-  { id: 'top', name: 'Top Panel', position: [0, 1, 0] },
-]
 
 function ErrorFallback({ error }: { error: Error }) {
   return (
@@ -53,12 +39,8 @@ export default function PersonalizationPage() {
   const [loading, setLoading] = useState(true)
   const [caseData, setCaseData] = useState<CaseData | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [selectedPanel, setSelectedPanel] = useState<string | null>(null)
-  const [uploadedImage, setUploadedImage] = useState<string | null>(null)
-  const [previewImage, setPreviewImage] = useState<string | null>(null)
 
-  // Move fetchData inside useCallback to fix dependency warning
-  const fetchData = useCallback(async () => {
+  const fetchData = async () => {
     try {
       const productsRef = collection(db, 'products')
       const querySnapshot = await getDocs(query(
@@ -69,13 +51,10 @@ export default function PersonalizationPage() {
       if (!querySnapshot.empty) {
         const data = querySnapshot.docs[0].data()
         
-        // Use local model path instead of Firebase URL
-        const localModelPath = '/3d/Corsair4000D-3D.glb'
-
         setCaseData({
           id: querySnapshot.docs[0].id,
           name: data.name,
-          model3D: localModelPath,  // Use local path
+          model3D: '/3d/Corsair4000D-3D.glb',  // Using local path
           image: data.image
         })
       } else {
@@ -87,41 +66,13 @@ export default function PersonalizationPage() {
     } finally {
       setLoading(false)
     }
-  }, [params.id])
+  }
 
   useEffect(() => {
     if (params.id && user) {
       fetchData()
     }
-  }, [params.id, user, fetchData])
-
-  const handlePanelSelect = (panelId: string) => {
-    setSelectedPanel(panelId)
-  }
-
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) {
-      const reader = new FileReader()
-      reader.onloadend = () => {
-        setPreviewImage(reader.result as string)
-        setUploadedImage(reader.result as string)
-      }
-      reader.readAsDataURL(file)
-    }
-  }
-
-  const handleApplyDesign = () => {
-    if (previewImage && selectedPanel) {
-      setUploadedImage(previewImage)
-    }
-  }
-
-  useEffect(() => {
-    if (selectedPanel) {
-      // Do something with selectedPanel
-    }
-  }, [selectedPanel])
+  }, [params.id, user])
 
   if (loading) {
     return (
@@ -144,66 +95,6 @@ export default function PersonalizationPage() {
 
   return (
     <div className="w-full h-screen bg-gray-900">
-      <div className="p-4">
-        {/* Panel Selection */}
-        <div className="mb-4">
-          {AVAILABLE_PANELS.map((panel) => (
-            <button
-              key={panel.id}
-              onClick={() => handlePanelSelect(panel.id)}
-              className={`mr-2 px-4 py-2 rounded ${
-                selectedPanel === panel.id ? 'bg-blue-600' : 'bg-gray-700'
-              } text-white`}
-            >
-              {panel.name}
-            </button>
-          ))}
-        </div>
-
-        {/* Image Upload */}
-        <div className="mb-4">
-          <input
-            type="file"
-            accept="image/*"
-            onChange={handleImageUpload}
-            className="text-white"
-          />
-        </div>
-
-        {/* Preview and Apply */}
-        {previewImage && selectedPanel && (
-          <div className="mb-4">
-            <Image 
-              src={previewImage}
-              alt="Preview"
-              width={192}
-              height={192}
-              className="w-48 h-48 object-cover rounded"
-            />
-            <button
-              onClick={handleApplyDesign}
-              className="mt-2 px-4 py-2 bg-blue-600 text-white rounded"
-            >
-              Apply Design
-            </button>
-          </div>
-        )}
-
-        {/* Display uploaded image if available */}
-        {uploadedImage && (
-          <div className="mb-4">
-            <h3 className="text-white mb-2">Applied Design:</h3>
-            <Image 
-              src={uploadedImage}
-              alt="Applied Design"
-              width={192}
-              height={192}
-              className="w-48 h-48 object-cover rounded"
-            />
-          </div>
-        )}
-      </div>
-
       <ErrorBoundary FallbackComponent={ErrorFallback}>
         <Scene modelPath={caseData.model3D} />
       </ErrorBoundary>
