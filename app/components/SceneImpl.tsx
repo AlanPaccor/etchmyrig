@@ -11,7 +11,7 @@ interface SceneProps {
 
 type PanelMesh = THREE.Mesh & {
   isPanel?: boolean
-  panelType?: 'front' | 'side' | 'top'
+  panelType?: 'back' | 'glass' | 'other'  // Updated panel types
   originalMaterial?: THREE.Material
   outlineEdges?: THREE.LineSegments
 }
@@ -27,11 +27,11 @@ interface GLTF {
   }
 }
 
-// Add these constants at the top of the file for consistent effects
-const HOVER_COLOR = 0x2196f3;  // Blue
-const SELECTED_COLOR = 0x4caf50;  // Green
-const HOVER_INTENSITY = 0.5;
-const SELECTED_INTENSITY = 0.8;
+// Update the constants at the top of the file
+const HOVER_COLOR = 0x00ff00;    // Bright green
+const SELECTED_COLOR = 0xff0000;  // Bright red
+const HOVER_OPACITY = 0.5;
+const SELECTED_OPACITY = 0.7;
 
 // Add this debug helper at the top of the file
 const DEBUG = {
@@ -110,8 +110,12 @@ export default function SceneImpl({ modelPath }: SceneProps) {
     controls.enablePan = false
 
     // Lights
-    const ambientLight = new THREE.AmbientLight(0xffffff, 1.5)
+    const ambientLight = new THREE.AmbientLight(0xffffff, 2.0);  // Increased intensity
     scene.add(ambientLight)
+
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 3.0);  // Increased intensity
+    directionalLight.position.set(5, 5, 5)
+    scene.add(directionalLight)
 
     const keyLight = new THREE.DirectionalLight(0xffffff, 2)
     keyLight.position.set(5, 5, 5)
@@ -160,119 +164,90 @@ export default function SceneImpl({ modelPath }: SceneProps) {
 
     // Define functions first
     const resetPanelMaterial = (panel: PanelMesh) => {
-      if (!sceneRef.current) return;
-      const { scene } = sceneRef.current;  // Get scene from sceneRef
-
-      if (panel.originalMaterial) {
-        panel.material = panel.originalMaterial.clone();
+      if (!panel.originalMaterial) {
+        DEBUG.log('No original material found for panel:', panel.name);
+        return;
       }
       
-      // Remove outline effect if it exists
-      if (panel.outlineEdges) {
-        scene.remove(panel.outlineEdges);
-        panel.outlineEdges.geometry.dispose();
-        panel.outlineEdges.material.dispose();
-        panel.outlineEdges = undefined;
+      // Properly dispose of current material
+      if (Array.isArray(panel.material)) {
+        panel.material.forEach(m => m.dispose());
+      } else {
+        panel.material.dispose();
       }
-
-      // Remove glow effect if it exists
-      if ((panel as any).glowMesh) {
-        scene.remove((panel as any).glowMesh);
-        (panel as any).glowMesh.geometry.dispose();
-        (panel as any).glowMesh.material.dispose();
-        (panel as any).glowMesh = undefined;
-      }
+      
+      // Apply original material
+      panel.material = panel.originalMaterial.clone();
+      panel.material.needsUpdate = true;
+      
+      DEBUG.log('Reset material for panel:', panel.name);
     }
 
-    const createOutline = (mesh: THREE.Mesh, color: number) => {
-      // Create outline geometry from the mesh's geometry
-      const edgesGeometry = new THREE.EdgesGeometry(mesh.geometry);
-      const edgesMaterial = new THREE.LineBasicMaterial({ 
-        color: color,
-        linewidth: 3,
-        transparent: false,
-        depthTest: false
+    const createHoverEffect = (panel: PanelMesh) => {
+      // Create a bright, emissive material for hover state
+      const hoverMaterial = new THREE.MeshStandardMaterial({
+        color: HOVER_COLOR,
+        emissive: HOVER_COLOR,
+        emissiveIntensity: 2,  // Increased intensity
+        metalness: 0,
+        roughness: 0.5,
+        transparent: true,
+        opacity: 0.8,
+        side: THREE.DoubleSide,
+        depthWrite: true,
+        depthTest: true
       });
+
+      // Apply the material
+      if (Array.isArray(panel.material)) {
+        panel.material.forEach(m => m.dispose());
+        panel.material = hoverMaterial;
+      } else {
+        panel.material.dispose();
+        panel.material = hoverMaterial;
+      }
       
-      const edges = new THREE.LineSegments(edgesGeometry, edgesMaterial);
-      
-      // Copy transform from mesh to outline
-      edges.position.copy(mesh.position);
-      edges.rotation.copy(mesh.rotation);
-      edges.scale.copy(mesh.scale);
-      edges.updateMatrix();
-      
-      // Slightly scale up the outline to prevent z-fighting
-      edges.scale.multiplyScalar(1.01);
-      
-      return edges;
+      panel.material.needsUpdate = true;
+      DEBUG.log('Applied hover effect with color:', HOVER_COLOR);
     }
 
     const selectPanel = (panel: PanelMesh) => {
       if (!sceneRef.current) return;
 
-      const { scene } = sceneRef.current;  // Get scene from sceneRef
+      DEBUG.log('Selecting panel:', panel.name);
 
       // Reset previous selection
       if (sceneRef.current.selectedPanel) {
         resetPanelMaterial(sceneRef.current.selectedPanel);
       }
 
-      // Create selection material
-      const selectionMaterial = new THREE.MeshPhongMaterial({
-        color: new THREE.Color(SELECTED_COLOR),
+      // Create a bright, emissive material for selected state
+      const selectionMaterial = new THREE.MeshStandardMaterial({
+        color: SELECTED_COLOR,
+        emissive: SELECTED_COLOR,
+        emissiveIntensity: 2,  // Increased intensity
+        metalness: 0,
+        roughness: 0.5,
         transparent: true,
-        opacity: 0.5,
+        opacity: 0.8,
         side: THREE.DoubleSide,
-        depthTest: true,
         depthWrite: true,
-        emissive: new THREE.Color(SELECTED_COLOR),
-        emissiveIntensity: 0.8,
-        shininess: 100
+        depthTest: true
       });
 
-      panel.material = selectionMaterial;
+      // Apply the material
+      if (Array.isArray(panel.material)) {
+        panel.material.forEach(m => m.dispose());
+        panel.material = selectionMaterial;
+      } else {
+        panel.material.dispose();
+        panel.material = selectionMaterial;
+      }
 
-      // Create outline
-      const outline = createOutline(panel, SELECTED_COLOR);
-      outline.renderOrder = 1000;
-      scene.add(outline);  // Now scene is properly defined
-      panel.outlineEdges = outline;
-
+      panel.material.needsUpdate = true;
       sceneRef.current.selectedPanel = panel;
-
-      // Add glow effect
-      const glowMaterial = new THREE.ShaderMaterial({
-        uniforms: {
-          color: { value: new THREE.Color(SELECTED_COLOR) }
-        },
-        vertexShader: `
-          varying vec3 vNormal;
-          void main() {
-            vNormal = normalize(normalMatrix * normal);
-            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-          }
-        `,
-        fragmentShader: `
-          uniform vec3 color;
-          varying vec3 vNormal;
-          void main() {
-            float intensity = pow(0.7 - dot(vNormal, vec3(0.0, 0.0, 1.0)), 2.0);
-            gl_FragColor = vec4(color, intensity);
-          }
-        `,
-        transparent: true,
-        depthWrite: false
-      });
-
-      const glowMesh = new THREE.Mesh(panel.geometry.clone(), glowMaterial);
-      glowMesh.position.copy(panel.position);
-      glowMesh.rotation.copy(panel.rotation);
-      glowMesh.scale.multiplyScalar(1.05);
-      scene.add(glowMesh);  // Now scene is properly defined
-
-      // Store reference to glow mesh for cleanup
-      (panel as any).glowMesh = glowMesh;
+      
+      DEBUG.log('Panel selected with color:', SELECTED_COLOR);
     }
 
     const highlightHoveredPanel = () => {
@@ -283,10 +258,28 @@ export default function SceneImpl({ modelPath }: SceneProps) {
 
       const intersects = raycaster.intersectObjects(scene.children, true);
       
+      // Only log if there are intersections
+      if (intersects.length > 0) {
+        DEBUG.log('Intersections:', intersects.map(int => ({
+          object: int.object.name,
+          ...(int.object.userData.isPanel && {
+            isPanel: true,
+            panelType: (int.object as PanelMesh).panelType
+          })
+        })));
+      }
+
       const hoveredPanel = intersects.find(intersect => {
-        const obj = intersect.object as PanelMesh;
-        return obj.isPanel === true;
+        const obj = intersect.object;
+        return obj.userData.isPanel === true;  // Check userData instead of direct property
       })?.object as PanelMesh | undefined;
+
+      if (hoveredPanel) {
+        DEBUG.log('Hovering over panel:', {
+          name: hoveredPanel.name,
+          type: hoveredPanel.panelType
+        });
+      }
 
       // Reset previous hover effect
       if (sceneRef.current.hoveredPanel && 
@@ -299,28 +292,7 @@ export default function SceneImpl({ modelPath }: SceneProps) {
       if (hoveredPanel && 
           hoveredPanel !== sceneRef.current.hoveredPanel && 
           hoveredPanel !== sceneRef.current.selectedPanel) {
-        
-        // Create hover material with very obvious effect
-        const hoverMaterial = new THREE.MeshPhongMaterial({
-          color: new THREE.Color(HOVER_COLOR),
-          transparent: true,
-          opacity: 0.5,
-          side: THREE.DoubleSide,
-          depthTest: true,
-          depthWrite: true,
-          emissive: new THREE.Color(HOVER_COLOR),
-          emissiveIntensity: 0.5,
-          shininess: 100
-        });
-
-        hoveredPanel.material = hoverMaterial;
-        
-        // Create outline
-        const outline = createOutline(hoveredPanel, HOVER_COLOR);
-        outline.renderOrder = 999;
-        scene.add(outline);
-        hoveredPanel.outlineEdges = outline;
-
+        createHoverEffect(hoveredPanel);
         DEBUG.log('Hover effect applied to:', hoveredPanel.name);
       }
 
@@ -334,31 +306,58 @@ export default function SceneImpl({ modelPath }: SceneProps) {
       const x = event.clientX - rect.left
       const y = event.clientY - rect.top
       
-      mouse.x = (x / rect.width) * 2 - 1
-      mouse.y = -(y / rect.height) * 2 + 1
-      
-      DEBUG.log('🖱️ Mouse position:', {
-        screen: { x: event.clientX, y: event.clientY },
-        normalized: { x: mouse.x, y: mouse.y }
-      });
+      if (sceneRef.current) {
+        sceneRef.current.mouse.x = (x / rect.width) * 2 - 1
+        sceneRef.current.mouse.y = -(y / rect.height) * 2 + 1
+      }
     }
 
     const handleClick = () => {
-      if (sceneRef.current?.hoveredPanel) {
-        selectPanel(sceneRef.current.hoveredPanel)
+      if (!sceneRef.current) return;
+
+      const { scene, camera, raycaster, mouse } = sceneRef.current;
+      raycaster.setFromCamera(mouse, camera);
+
+      const intersects = raycaster.intersectObjects(scene.children, true);
+      
+      DEBUG.log('Click intersections:', intersects.map(int => ({
+        name: int.object.name,
+        isPanel: int.object.userData.isPanel,
+        type: int.object.userData.panelType
+      })));
+
+      const clickedPanel = intersects.find(intersect => 
+        intersect.object.userData.isPanel === true
+      )?.object as PanelMesh | undefined;
+
+      if (clickedPanel) {
+        DEBUG.log('Clicking panel:', {
+          name: clickedPanel.name,
+          type: clickedPanel.panelType
+        });
+        selectPanel(clickedPanel);
       }
     }
 
-    // Animation loop
+    // Update the animation loop to only check for hover when mouse moves
+    let lastMouseX = 0;
+    let lastMouseY = 0;
+
     function animate() {
-      requestAnimationFrame(animate)
-      controls.update()
+      requestAnimationFrame(animate);
+      controls.update();
       
       if (sceneRef.current) {
-        highlightHoveredPanel()
+        const { mouse } = sceneRef.current;
+        // Only check for hover if mouse position has changed
+        if (mouse.x !== lastMouseX || mouse.y !== lastMouseY) {
+          highlightHoveredPanel();
+          lastMouseX = mouse.x;
+          lastMouseY = mouse.y;
+        }
       }
       
-      renderer.render(scene, camera)
+      renderer.render(scene, camera);
     }
 
     // Load model
@@ -367,87 +366,101 @@ export default function SceneImpl({ modelPath }: SceneProps) {
       modelPath,
       (gltf: GLTF) => {
         DEBUG.log('🔵 Model loaded successfully');
-        scene.add(gltf.scene)
+        
+        // Log the immediate children of the scene
+        DEBUG.log('Root level objects:');
+        gltf.scene.children.forEach(child => {
+          DEBUG.log(`- ${child.name} (${child.type})`);
+        });
+
+        scene.add(gltf.scene);
         
         let panelCount = 0;
         
-        // Process the model to identify panels
-        gltf.scene.traverse((child) => {
-          if (child instanceof THREE.Mesh) {
-            const meshName = child.name.toLowerCase();
-            const worldPosition = new THREE.Vector3();
-            child.getWorldPosition(worldPosition);
-            
-            // Get the size of the mesh
-            const boundingBox = new THREE.Box3().setFromObject(child);
-            const size = boundingBox.getSize(new THREE.Vector3());
-            
-            DEBUG.log('📦 Analyzing mesh:', {
-              name: child.name,
-              position: {
-                x: worldPosition.x.toFixed(3),
-                y: worldPosition.y.toFixed(3),
-                z: worldPosition.z.toFixed(3)
-              },
-              size: {
-                x: size.x.toFixed(3),
-                y: size.y.toFixed(3),
-                z: size.z.toFixed(3)
-              }
+        // Find our panel collections with more detailed logging
+        gltf.scene.traverse((object) => {
+          if (object instanceof THREE.Mesh) {
+            DEBUG.log('Found mesh:', {
+              name: object.name,
+              parent: object.parent?.name,
+              geometry: object.geometry.type,
+              material: object.material ? 'yes' : 'no'
             });
+          }
+        });
 
-            // Adjust panel detection criteria
-            const isPotentialPanel = (
-              // Large surface area in any dimension
-              (size.x * size.y > 0.01 || size.y * size.z > 0.01 || size.x * size.z > 0.01) &&
-              // Thin in at least one dimension
-              (size.x < 0.1 || size.y < 0.1 || size.z < 0.1)
-            );
+        // First find the panel collections
+        let backPanelCollection: THREE.Object3D | null = null;
+        let glassPanelCollection: THREE.Object3D | null = null;
+        
+        // Debug the scene structure first
+        DEBUG.log('Scene structure:');
+        gltf.scene.traverse((object) => {
+          DEBUG.log(`- ${object.name} (${object.type})`);
+        });
 
-            if (isPotentialPanel) {
+        // Find our panel collections
+        gltf.scene.traverse((object) => {
+          const name = object.name.toLowerCase();
+          if (name.includes('backpanel')) {
+            backPanelCollection = object;
+            DEBUG.log('Found BackPanel collection:', object.name);
+          }
+          if (name.includes('glasspanel')) {
+            glassPanelCollection = object;
+            DEBUG.log('Found GlassPanel collection:', object.name);
+          }
+        });
+
+        // Process panels within collections
+        const processCollection = (collection: THREE.Object3D | null, type: 'back' | 'glass') => {
+          if (!collection) {
+            DEBUG.log(`⚠️ No ${type} panel collection found`);
+            return;
+          }
+          
+          collection.traverse((child) => {
+            if (child instanceof THREE.Mesh) {
+              DEBUG.log(`Processing ${type} panel mesh:`, child.name);
+              
+              // Store panel properties in userData
+              child.userData.isPanel = true;
+              child.userData.panelType = type;
+              
+              // Store as PanelMesh properties too
               const panelMesh = child as PanelMesh;
               panelMesh.isPanel = true;
-              panelCount++;
-
-              // Store original material
+              panelMesh.panelType = type;
+              
+              // Store original material with a clone
               if (Array.isArray(child.material)) {
                 panelMesh.originalMaterial = child.material[0].clone();
-                DEBUG.log('Array material found for mesh:', child.name);
               } else {
                 panelMesh.originalMaterial = child.material.clone();
               }
 
-              // Make the panel interactive
-              panelMesh.userData.isInteractive = true;
-
-              // Determine panel type based on size and position
-              if (isSidePanel(worldPosition, size)) {
-                panelMesh.panelType = 'side';
-              } else if (isFrontPanel(worldPosition, size)) {
-                panelMesh.panelType = 'front';
-              } else if (isTopPanel(worldPosition, size)) {
-                panelMesh.panelType = 'top';
-              }
-
-              DEBUG.log('🎯 Panel configured:', {
+              // Make sure the original material is properly stored
+              DEBUG.log('Original material stored:', {
                 name: child.name,
-                type: panelMesh.panelType,
-                position: {
-                  x: worldPosition.x.toFixed(3),
-                  y: worldPosition.y.toFixed(3),
-                  z: worldPosition.z.toFixed(3)
-                },
-                size: {
-                  x: size.x.toFixed(3),
-                  y: size.y.toFixed(3),
-                  z: size.z.toFixed(3)
-                }
+                material: panelMesh.originalMaterial ? 'yes' : 'no',
+                type: panelMesh.originalMaterial?.type
+              });
+
+              panelCount++;
+              
+              DEBUG.log('✅ Panel configured:', {
+                name: child.name,
+                type: type
               });
             }
-          }
-        })
+          });
+        };
 
-        DEBUG.log(`✅ Total panels configured: ${panelCount}`);
+        // Process both collections
+        processCollection(backPanelCollection, 'back');
+        processCollection(glassPanelCollection, 'glass');
+
+        DEBUG.log(`Total panels configured: ${panelCount}`);
         
         // Center and scale model
         const box = new THREE.Box3().setFromObject(gltf.scene)
@@ -508,11 +521,6 @@ export default function SceneImpl({ modelPath }: SceneProps) {
     // Add event listeners
     containerRef.current.addEventListener('mousemove', (event) => {
       handleMouseMove(event);
-      DEBUG.log('Mouse moved:', {
-        clientX: event.clientX,
-        clientY: event.clientY,
-        rect: containerRef.current?.getBoundingClientRect()
-      });
     })
     containerRef.current.addEventListener('click', handleClick)
 
