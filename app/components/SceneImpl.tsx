@@ -28,10 +28,10 @@ interface GLTF {
 }
 
 // Update the constants at the top of the file
-const HOVER_COLOR = 0x00ff00;    // Bright green
+const HOVER_COLOR = 0x00ffff;    // Bright cyan - more visible
 const SELECTED_COLOR = 0xff0000;  // Bright red
-const HOVER_OPACITY = 0.5;
-const SELECTED_OPACITY = 0.7;
+const HOVER_OPACITY = 1.0;        // Fully opaque
+const SELECTED_OPACITY = 1.0;     // Fully opaque
 
 // Add this debug helper at the top of the file
 const DEBUG = {
@@ -169,6 +169,12 @@ export default function SceneImpl({ modelPath }: SceneProps) {
         return;
       }
       
+      // Remove outline if it exists
+      if (panel.outlineEdges) {
+        panel.remove(panel.outlineEdges);
+        panel.outlineEdges = undefined;
+      }
+      
       // Properly dispose of current material
       if (Array.isArray(panel.material)) {
         panel.material.forEach(m => m.dispose());
@@ -184,21 +190,37 @@ export default function SceneImpl({ modelPath }: SceneProps) {
     }
 
     const createHoverEffect = (panel: PanelMesh) => {
-      // Create a bright, emissive material for hover state
-      const hoverMaterial = new THREE.MeshStandardMaterial({
+      // Create a more visible hover material
+      const hoverMaterial = new THREE.MeshPhongMaterial({
         color: HOVER_COLOR,
         emissive: HOVER_COLOR,
-        emissiveIntensity: 2,  // Increased intensity
-        metalness: 0,
-        roughness: 0.5,
-        transparent: true,
-        opacity: 0.8,
+        emissiveIntensity: 1,
+        specular: 0xffffff,
+        shininess: 100,
+        transparent: false,  // Changed to false for full opacity
         side: THREE.DoubleSide,
         depthWrite: true,
         depthTest: true
       });
 
-      // Apply the material
+      // Create a glowing outline effect
+      const outlineMaterial = new THREE.MeshBasicMaterial({
+        color: HOVER_COLOR,
+        side: THREE.BackSide,  // Render on back side
+      });
+
+      // Create outline mesh
+      const outlineMesh = new THREE.Mesh(
+        panel.geometry.clone(),
+        outlineMaterial
+      );
+      outlineMesh.scale.multiplyScalar(1.05);  // Make outline slightly larger
+      panel.add(outlineMesh);
+      
+      // Store outline for later removal
+      panel.outlineEdges = outlineMesh as any;
+
+      // Apply the hover material
       if (Array.isArray(panel.material)) {
         panel.material.forEach(m => m.dispose());
         panel.material = hoverMaterial;
@@ -208,7 +230,7 @@ export default function SceneImpl({ modelPath }: SceneProps) {
       }
       
       panel.material.needsUpdate = true;
-      DEBUG.log('Applied hover effect with color:', HOVER_COLOR);
+      DEBUG.log('Applied enhanced hover effect');
     }
 
     const selectPanel = (panel: PanelMesh) => {
@@ -221,19 +243,31 @@ export default function SceneImpl({ modelPath }: SceneProps) {
         resetPanelMaterial(sceneRef.current.selectedPanel);
       }
 
-      // Create a bright, emissive material for selected state
-      const selectionMaterial = new THREE.MeshStandardMaterial({
+      const selectionMaterial = new THREE.MeshPhongMaterial({
         color: SELECTED_COLOR,
         emissive: SELECTED_COLOR,
-        emissiveIntensity: 2,  // Increased intensity
-        metalness: 0,
-        roughness: 0.5,
-        transparent: true,
-        opacity: 0.8,
+        emissiveIntensity: 1,
+        specular: 0xffffff,
+        shininess: 100,
+        transparent: false,
         side: THREE.DoubleSide,
         depthWrite: true,
         depthTest: true
       });
+
+      // Create glowing outline for selected state
+      const outlineMaterial = new THREE.MeshBasicMaterial({
+        color: SELECTED_COLOR,
+        side: THREE.BackSide,
+      });
+
+      const outlineMesh = new THREE.Mesh(
+        panel.geometry.clone(),
+        outlineMaterial
+      );
+      outlineMesh.scale.multiplyScalar(1.05);
+      panel.add(outlineMesh);
+      panel.outlineEdges = outlineMesh as any;
 
       // Apply the material
       if (Array.isArray(panel.material)) {
@@ -247,7 +281,7 @@ export default function SceneImpl({ modelPath }: SceneProps) {
       panel.material.needsUpdate = true;
       sceneRef.current.selectedPanel = panel;
       
-      DEBUG.log('Panel selected with color:', SELECTED_COLOR);
+      DEBUG.log('Panel selected with enhanced effect');
     }
 
     const highlightHoveredPanel = () => {
