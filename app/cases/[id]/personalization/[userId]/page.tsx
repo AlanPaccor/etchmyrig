@@ -546,7 +546,10 @@ export default function PersonalizationPage() {
         ) : (
           <ErrorBoundary FallbackComponent={ErrorFallback}>
             <div className="h-[700px] bg-gray-800 rounded-xl overflow-hidden relative">
-              <Scene modelPath={caseData.model3D} designData={designData} />
+              <Scene 
+                modelPath={caseData.model3D} 
+                designData={designData || undefined} 
+              />
               
               <div className="absolute bottom-6 right-6">
                 <button

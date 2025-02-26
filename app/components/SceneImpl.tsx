@@ -2,8 +2,8 @@
 
 import { useEffect, useRef, useState } from 'react'
 import * as THREE from 'three'
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls'
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader'
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
 
 interface SceneProps {
   modelPath: string
@@ -69,215 +69,66 @@ export default function SceneImpl({ modelPath, designData }: SceneProps) {
     mouse: THREE.Vector2
     selectedPanel: PanelMesh | null
     hoveredPanel: PanelMesh | null
-  }>()
+  }>({} as any)
+
+  console.log("Loading model from path:", modelPath);
+
+  // You could also try loading a different model to see if the issue is specific to this model
+  const fallbackModelPath = '/3d/cube.glb'; // A simple cube model
 
   useEffect(() => {
-    if (!containerRef.current) return
-
-    // Scene setup
-    const scene = new THREE.Scene()
-    scene.background = new THREE.Color(0x111111)
-
-    // Get container dimensions
-    const containerWidth = containerRef.current.clientWidth
-    const containerHeight = containerRef.current.clientHeight
-
-    // Camera setup
+    if (!containerRef.current) return;
+    
+    console.log("Setting up minimal Three.js scene");
+    
+    // Create scene
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x333333);
+    
+    // Create camera
     const camera = new THREE.PerspectiveCamera(
-      45,
-      containerWidth / containerHeight,
+      75,
+      containerRef.current.clientWidth / containerRef.current.clientHeight,
       0.1,
       1000
-    )
-    camera.position.set(3, 2, 3)
-
-    // Renderer setup
-    const renderer = new THREE.WebGLRenderer({ 
-      antialias: true,
-      alpha: true,
-      powerPreference: "high-performance"
-    })
-    renderer.setSize(containerWidth, containerHeight)
-    renderer.setPixelRatio(window.devicePixelRatio)
-    renderer.shadowMap.enabled = true
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap
-    containerRef.current.appendChild(renderer.domElement)
-
-    // Controls
-    const controls = new OrbitControls(camera, renderer.domElement)
-    controls.enableDamping = true
-    controls.dampingFactor = 0.05
-    controls.minDistance = 1.5
-    controls.maxDistance = 10
-    controls.autoRotate = true
-    controls.autoRotateSpeed = 0.5
-    controls.target.set(0, 0, 0)
-    controls.enablePan = false
-    controls.enableZoom = true
-    controls.enableRotate = true
-
-    // Add lights
-    const ambientLight = new THREE.AmbientLight(0xffffff, 2)
-    scene.add(ambientLight)
-
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 2)
-    directionalLight.position.set(5, 5, 5)
-    scene.add(directionalLight)
-
-    const backLight = new THREE.DirectionalLight(0xffffff, 1)
-    backLight.position.set(-5, -5, -5)
-    scene.add(backLight)
-
-    // Add a point light near the camera
-    const pointLight = new THREE.PointLight(0xffffff, 1)
-    camera.add(pointLight)
-    scene.add(camera)
-
-    // Simplified reference object - no hover/selection tracking
-    sceneRef.current = {
-      scene,
-      camera,
-      renderer,
-      raycaster: new THREE.Raycaster(),
-      mouse: new THREE.Vector2(),
-      selectedPanel: null,
-      hoveredPanel: null
-    }
-
-    // Animation function - just update controls and render
+    );
+    camera.position.set(0, 0, 5);
+    
+    // Create renderer
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(containerRef.current.clientWidth, containerRef.current.clientHeight);
+    containerRef.current.appendChild(renderer.domElement);
+    
+    // Add a simple cube
+    const geometry = new THREE.BoxGeometry(1, 1, 1);
+    const material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+    const cube = new THREE.Mesh(geometry, material);
+    scene.add(cube);
+    
+    // Add light
+    const light = new THREE.AmbientLight(0xffffff, 1);
+    scene.add(light);
+    
+    // Animation function
     function animate() {
-      requestAnimationFrame(animate)
-      controls.update()
-      renderer.render(scene, camera)
+      requestAnimationFrame(animate);
+      cube.rotation.x += 0.01;
+      cube.rotation.y += 0.01;
+      renderer.render(scene, camera);
     }
-
-    // Load the model
-    const loader = new GLTFLoader()
-    loader.load(
-      modelPath,
-      (gltf) => {
-        scene.add(gltf.scene)
-        
-        // Find panels in the model - simplified, no debug logs
-        let panelCount = 0
-        
-        // Collections for different panel types
-        const backPanelCollection: THREE.Mesh[] = []
-        const glassPanelCollection: THREE.Mesh[] = []
-        
-        // Find all meshes that could be panels
-        gltf.scene.traverse((child) => {
-          if (child instanceof THREE.Mesh) {
-            // For this example, we'll identify panels by their geometry
-            const box = new THREE.Box3().setFromObject(child)
-            const size = box.getSize(new THREE.Vector3())
-            const position = box.getCenter(new THREE.Vector3())
-            
-            // Check if it's a back panel (usually flat and at the back)
-            if (position.z < -0.5 && isFrontPanel(position, size)) {
-              backPanelCollection.push(child)
-            }
-            
-            // Check if it's a glass panel (usually flat and at the front)
-            if (position.z > 0.5 && isFrontPanel(position, size)) {
-              glassPanelCollection.push(child)
-            }
-          }
-        })
-        
-        // Process a collection of panels
-        const processCollection = (collection: THREE.Mesh[], panelType: 'back' | 'glass') => {
-          if (collection.length === 0) {
-            // If no panels found by geometry, use a fallback
-            gltf.scene.traverse((child) => {
-              if (child instanceof THREE.Mesh) {
-                // For demo, mark a specific mesh as a panel
-                if (panelType === 'back' && child.name === 'Object_44001') {
-                  (child as PanelMesh).userData.isPanel = true;
-                  (child as PanelMesh).userData.panelType = 'back';
-                  panelCount++;
-                } else if (panelType === 'glass' && (child.name === 'Object_42' || child.name === 'Object_43')) {
-                  (child as PanelMesh).userData.isPanel = true;
-                  (child as PanelMesh).userData.panelType = 'glass';
-                  panelCount++;
-                }
-              }
-            });
-            return;
-          }
-          
-          // Mark all meshes in the collection as panels
-          collection.forEach((mesh) => {
-            (mesh as PanelMesh).userData.isPanel = true;
-            (mesh as PanelMesh).userData.panelType = panelType;
-            panelCount++;
-          });
-        }
-        
-        // Process both collections
-        processCollection(backPanelCollection, 'back')
-        processCollection(glassPanelCollection, 'glass')
-        
-        // Center and scale model
-        const box = new THREE.Box3().setFromObject(gltf.scene)
-        const modelCenter = box.getCenter(new THREE.Vector3())
-        const size = box.getSize(new THREE.Vector3())
-        
-        const maxDim = Math.max(size.x, size.y, size.z)
-        const scale = 2 / maxDim
-        gltf.scene.scale.setScalar(scale)
-        
-        // Center the model
-        gltf.scene.position.x = -modelCenter.x * scale
-        gltf.scene.position.y = -modelCenter.y * scale
-        gltf.scene.position.z = -modelCenter.z * scale
-        
-        // Adjust camera to fit model
-        const boundingBox = new THREE.Box3().setFromObject(gltf.scene)
-        const cameraTarget = boundingBox.getCenter(new THREE.Vector3())
-        controls.target.copy(cameraTarget)
-        
-        // Position camera to get a good view
-        camera.position.set(
-          cameraTarget.x + 2,
-          cameraTarget.y + 1.5,
-          cameraTarget.z + 2
-        )
-        camera.lookAt(cameraTarget)
-        
-        // Force a render
-        renderer.render(scene, camera)
-      },
-      undefined,
-      (error) => {
-        console.error('Error loading model:', error)
-      }
-    )
     
-    // Start animation
-    animate()
+    animate();
     
-    // Handle resize
-    function handleResize() {
-      if (!containerRef.current) return
-      const width = containerRef.current.clientWidth
-      const height = containerRef.current.clientHeight
-      camera.aspect = width / height
-      camera.updateProjectionMatrix()
-      renderer.setSize(width, height)
-    }
-    window.addEventListener('resize', handleResize)
-    handleResize()
+    console.log("Minimal scene setup complete");
     
     // Cleanup
     return () => {
-      window.removeEventListener('resize', handleResize)
-      renderer.dispose()
-      if (containerRef.current?.contains(renderer.domElement)) {
-        containerRef.current.removeChild(renderer.domElement)
+      console.log("Cleaning up Three.js scene");
+      if (containerRef.current) {
+        containerRef.current.removeChild(renderer.domElement);
       }
-    }
-  }, [modelPath])
+    };
+  }, []);
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
@@ -311,7 +162,9 @@ export default function SceneImpl({ modelPath, designData }: SceneProps) {
         });
 
         // Apply it directly to the mesh
-        backPanel.material = material;
+        if (backPanel) {
+          backPanel.material = material;
+        }
         
         // Clean up
         URL.revokeObjectURL(url);
@@ -353,7 +206,7 @@ export default function SceneImpl({ modelPath, designData }: SceneProps) {
     );
   }
 
-  // Update the applyDesignTexture method to handle CORS issues
+  // Update the applyDesignTexture method to make changes more obvious
   const applyDesignTexture = (
     panelType: 'back' | 'glass', 
     imageUrl: string,
@@ -378,6 +231,8 @@ export default function SceneImpl({ modelPath, designData }: SceneProps) {
     sceneRef.current.scene.traverse((child) => {
       if (child instanceof THREE.Mesh) {
         allMeshes.push(child);
+        // Log all mesh names to help with debugging
+        console.log(`Found mesh: ${child.name}`);
       }
     });
     
@@ -429,119 +284,48 @@ export default function SceneImpl({ modelPath, designData }: SceneProps) {
     
     if (!targetPanel) {
       console.error(`No ${panelType} panel found to apply texture`);
-      return;
+      
+      // As a last resort, try to apply to any large flat mesh
+      const largeMeshes = allMeshes.filter(mesh => {
+        const box = new THREE.Box3().setFromObject(mesh);
+        const size = box.getSize(new THREE.Vector3());
+        return size.x > 0.5 && size.y > 0.5;
+      });
+      
+      if (largeMeshes.length > 0) {
+        console.log("Trying to apply to a large mesh as fallback:", largeMeshes[0].name);
+        targetPanel = largeMeshes[0];
+      } else {
+        return;
+      }
     }
     
     console.log(`Found ${panelType} panel:`, targetPanel.name);
     
-    // Handle CORS issues by creating a local canvas with the image
-    const img = new Image();
-    img.crossOrigin = "anonymous";
+    // Use a very simple, high-contrast material for testing
+    const material = new THREE.MeshBasicMaterial({
+      color: panelType === 'back' ? 0xff0000 : 0x00aaff,  // Red for back, blue for glass
+      wireframe: true,  // Make it wireframe to be very obvious
+      side: THREE.DoubleSide
+    });
     
-    // Create a canvas to draw the image
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
+    // Store original material if needed
+    if (!targetPanel.userData.originalMaterial) {
+      targetPanel.userData.originalMaterial = targetPanel.material;
+    }
     
-    img.onload = () => {
-      // Set canvas size to match image
-      canvas.width = img.width;
-      canvas.height = img.height;
+    // Apply to panel
+    targetPanel.material = material;
+    
+    // Force a render update
+    if (sceneRef.current?.renderer) {
+      sceneRef.current.renderer.render(
+        sceneRef.current.scene,
+        sceneRef.current.camera
+      );
       
-      // Draw image to canvas
-      if (ctx) {
-        ctx.drawImage(img, 0, 0);
-        
-        // Create texture from canvas
-        const texture = new THREE.CanvasTexture(canvas);
-        
-        // Apply texture transformations
-        texture.center.set(0.5, 0.5);
-        texture.repeat.set(scale.width/100, scale.height/100);
-        texture.rotation = rotation * Math.PI / 180;
-        texture.offset.set((position.x - 50)/100, (position.y - 50)/100);
-        
-        // Create a material appropriate for the panel type
-        let material;
-        
-        if (panelType === 'back') {
-          // For back panel (metal) - use a material that shows the texture clearly
-          material = new THREE.MeshStandardMaterial({
-            map: texture,
-            metalness: 0.7,
-            roughness: 0.3,
-            color: 0xffffff,
-            side: THREE.DoubleSide
-          });
-        } else {
-          // For glass panel - use a transparent material
-          material = new THREE.MeshStandardMaterial({
-            map: texture,
-            transparent: true,
-            opacity: 0.9,
-            side: THREE.DoubleSide
-          });
-        }
-        
-        // Store original material if needed
-        if (!targetPanel.userData.originalMaterial) {
-          targetPanel.userData.originalMaterial = targetPanel.material;
-        }
-        
-        // Apply to panel
-        targetPanel.material = material;
-        
-        // Force a render update
-        if (sceneRef.current?.renderer) {
-          sceneRef.current.renderer.render(
-            sceneRef.current.scene,
-            sceneRef.current.camera
-          );
-          
-          console.log('Texture applied and rendered');
-        }
-      }
-    };
-    
-    img.onerror = (err) => {
-      console.error('Error loading image:', err);
-      
-      // Try an alternative approach - use a proxy or convert to data URL
-      console.log('Trying alternative approach for image loading...');
-      
-      // For Firebase Storage URLs, we can try using a proxy or a different approach
-      if (imageUrl.includes('firebasestorage.googleapis.com')) {
-        // Option 1: Try using a local image as a fallback
-        const fallbackImage = '/placeholder-image.png';
-        console.log('Using fallback image:', fallbackImage);
-        
-        const textureLoader = new THREE.TextureLoader();
-        textureLoader.load(
-          fallbackImage,
-          (texture) => {
-            // Create a simple material with the texture
-            const material = new THREE.MeshBasicMaterial({
-              map: texture,
-              transparent: true,
-              side: THREE.DoubleSide
-            });
-            
-            // Apply to panel
-            targetPanel.material = material;
-            
-            // Force a render update
-            if (sceneRef.current?.renderer) {
-              sceneRef.current.renderer.render(
-                sceneRef.current.scene,
-                sceneRef.current.camera
-              );
-            }
-          }
-        );
-      }
-    };
-    
-    // Set the source to trigger loading
-    img.src = imageUrl;
+      console.log('Material applied and rendered');
+    }
   }
 
   // Update the useEffect to apply design data when component mounts or changes
@@ -572,6 +356,25 @@ export default function SceneImpl({ modelPath, designData }: SceneProps) {
     }
   }, [designData]);
 
+  // Add a function to reset the model
+  const resetModel = () => {
+    if (!sceneRef.current) return;
+    
+    sceneRef.current.scene.traverse((child) => {
+      if (child instanceof THREE.Mesh && child.userData.originalMaterial) {
+        child.material = child.userData.originalMaterial;
+      }
+    });
+    
+    // Force a render update
+    if (sceneRef.current?.renderer) {
+      sceneRef.current.renderer.render(
+        sceneRef.current.scene,
+        sceneRef.current.camera
+      );
+    }
+  }
+
   return (
     <div 
       ref={containerRef} 
@@ -600,6 +403,151 @@ export default function SceneImpl({ modelPath, designData }: SceneProps) {
           </svg>
           Back to Design
         </button>
+      </div>
+      
+      {/* Enhanced Debug Panel */}
+      <div className="absolute top-4 right-4 z-10 bg-gray-800 p-4 rounded-lg shadow-lg text-white">
+        <h3 className="text-lg font-bold mb-2">Debug Tools</h3>
+        
+        <div className="space-y-2">
+          <button 
+            onClick={() => {
+              // Apply a bright red material to the back panel
+              if (sceneRef.current) {
+                sceneRef.current.scene.traverse((child) => {
+                  if (child instanceof THREE.Mesh && 
+                      (child.name === 'Object_44001' || 
+                       (child.userData.isPanel && child.userData.panelType === 'back'))) {
+                    child.material = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+                    
+                    // Force a render
+                    if (sceneRef.current?.renderer) {
+                      sceneRef.current.renderer.render(
+                        sceneRef.current.scene,
+                        sceneRef.current.camera
+                      );
+                    }
+                  }
+                });
+              }
+            }}
+            className="w-full px-3 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md"
+          >
+            Red Back Panel
+          </button>
+          
+          <button 
+            onClick={() => {
+              // Apply a bright blue material to the glass panel
+              if (sceneRef.current) {
+                sceneRef.current.scene.traverse((child) => {
+                  if (child instanceof THREE.Mesh && 
+                      ((child.name === 'Object_42' || child.name === 'Object_43') || 
+                       (child.userData.isPanel && child.userData.panelType === 'glass'))) {
+                    child.material = new THREE.MeshBasicMaterial({ 
+                      color: 0x00aaff,
+                      transparent: true,
+                      opacity: 0.7
+                    });
+                    
+                    // Force a render
+                    if (sceneRef.current?.renderer) {
+                      sceneRef.current.renderer.render(
+                        sceneRef.current.scene,
+                        sceneRef.current.camera
+                      );
+                    }
+                  }
+                });
+              }
+            }}
+            className="w-full px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md"
+          >
+            Blue Glass Panel
+          </button>
+          
+          <button 
+            onClick={() => {
+              // List all meshes in the console
+              if (sceneRef.current) {
+                console.log("All meshes in the scene:");
+                sceneRef.current.scene.traverse((child) => {
+                  if (child instanceof THREE.Mesh) {
+                    console.log(`Mesh: ${child.name}`, child);
+                  }
+                });
+              }
+            }}
+            className="w-full px-3 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-md"
+          >
+            List All Meshes
+          </button>
+          
+          <button 
+            onClick={() => {
+              // Apply the custom design with canvas
+              applyDesignTexture('back', 'test', {x: 50, y: 50}, {width: 100, height: 100}, 0);
+              applyDesignTexture('glass', 'test', {x: 50, y: 50}, {width: 100, height: 100}, 0);
+            }}
+            className="w-full px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md"
+          >
+            Apply Canvas Design
+          </button>
+          
+          <button 
+            onClick={resetModel}
+            className="w-full px-3 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-md"
+          >
+            Reset Model
+          </button>
+          
+          <button 
+            onClick={() => {
+              // Add a simple cube to the scene
+              if (sceneRef.current) {
+                const cube = new THREE.Mesh(
+                  new THREE.BoxGeometry(0.5, 0.5, 0.5),
+                  new THREE.MeshBasicMaterial({ color: 0x00ff00 })
+                );
+                cube.position.set(0, 1, 0);
+                sceneRef.current.scene.add(cube);
+                
+                // Force a render
+                if (sceneRef.current.renderer) {
+                  sceneRef.current.renderer.render(
+                    sceneRef.current.scene,
+                    sceneRef.current.camera
+                  );
+                }
+                console.log("Test cube added");
+              }
+            }}
+            className="w-full px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md"
+          >
+            Add Test Cube
+          </button>
+          
+          <button 
+            onClick={() => {
+              // Move the camera to a different position
+              if (sceneRef.current) {
+                sceneRef.current.camera.position.set(-3, 2, 3);
+                
+                // Force a render
+                if (sceneRef.current.renderer) {
+                  sceneRef.current.renderer.render(
+                    sceneRef.current.scene,
+                    sceneRef.current.camera
+                  );
+                }
+                console.log("Camera moved");
+              }
+            }}
+            className="w-full px-3 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-md"
+          >
+            Move Camera
+          </button>
+        </div>
       </div>
     </div>
   )
