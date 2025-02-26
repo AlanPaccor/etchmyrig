@@ -10,12 +10,21 @@ const SceneImpl = dynamic(() => import('./SceneImpl'), {
 
 interface SceneProps {
   modelPath: string
+  designData?: {
+    panels: Array<{
+      panelType: 'back' | 'glass'
+      imageUrl?: string
+      position: { x: number, y: number }
+      scale: { width: number, height: number }
+      rotation: number
+    }>
+  }
 }
 
-export default function Scene({ modelPath }: SceneProps) {
+export default function Scene({ modelPath, designData }: SceneProps) {
   return (
     <Suspense fallback={null}>
-      <SceneImpl modelPath={modelPath} />
+      <SceneImpl modelPath={modelPath} designData={designData} />
     </Suspense>
   )
 } 
